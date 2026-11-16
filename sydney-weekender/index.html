@@ -1,0 +1,366 @@
+<title>Sydney Weekender</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a ferry-timetable board. Masthead with the weekend's three dates, one control deck, then a two-column board of finds. */
+:root {
+  --bg: #edf2ee;          /* harbour mist */
+  --surface: #fbfcfa;
+  --ink: #12261f;
+  --muted: #56695f;
+  --line: #cfdad3;
+  --green: #0e5a43;       /* ferry hull green */
+  --green-ink: #f4f8f3;
+  --buff: #f0bd2b;        /* ferry funnel buff */
+  --buff-ink: #2b2206;
+  --tint: #dfe9e2;
+  --warn: #a4441c;
+  --free: #0b6b52;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1512; --surface: #13211c; --ink: #e6efe9; --muted: #93a79c; --line: #263a32;
+    --green: #2f9a78; --green-ink: #06140f; --buff: #f0bd2b; --buff-ink: #2b2206;
+    --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1512; --surface: #13211c; --ink: #e6efe9; --muted: #93a79c; --line: #263a32;
+  --green: #2f9a78; --green-ink: #06140f; --buff: #f0bd2b; --buff-ink: #2b2206;
+  --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--buff); outline-offset: 2px; }
+
+/* Masthead */
+.mast { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.mast h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 6vw, 3.1rem); line-height: 0.95; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.mast h1 span { color: var(--green); }
+.status { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.status b { color: var(--ink); font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--free); margin-right: 6px; }
+.dot.stale { background: var(--warn); }
+.surprise { background: var(--buff); color: var(--buff-ink); border: 0; border-radius: 999px; padding: 11px 20px; font-weight: 600; cursor: pointer; }
+.surprise:hover { filter: brightness(1.06); }
+
+/* Control deck */
+.deck { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 8px 12px; cursor: pointer; text-align: left; display: flex; flex-direction: column; min-width: 0; }
+.tab small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tab strong { font-family: var(--display); font-weight: 700; font-size: 15px; }
+.tab[aria-selected="true"] { background: var(--green); border-color: var(--green); color: var(--green-ink); }
+.tab[aria-selected="true"] small { color: var(--green-ink); opacity: 0.8; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-right: 2px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: var(--green); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip.free[aria-pressed="true"] { background: var(--free); border-color: var(--free); color: var(--green-ink); }
+.chip:disabled { opacity: 0.4; cursor: default; }
+.field { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 10px; min-width: 0; }
+#q { flex: 1 1 160px; }
+
+/* Board */
+.count { color: var(--muted); font-size: 13px; margin: 0; }
+.board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card.flash { border-color: var(--buff); box-shadow: 0 0 0 3px var(--buff); }
+.card.been { opacity: 0.7; }
+.top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.cat { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); font-weight: 600; }
+.pips { display: flex; gap: 3px; flex: none; }
+.pip { width: 26px; text-align: center; font-size: 11px; font-weight: 600; border-radius: 5px; padding: 2px 0; background: var(--tint); color: var(--muted); opacity: 0.55; }
+.pip.on { background: var(--green); color: var(--green-ink); opacity: 1; }
+.card h2 { font-family: var(--display); font-weight: 700; font-size: 1.2rem; line-height: 1.15; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.card h2 a { color: inherit; text-decoration: none; }
+.card h2 a:hover { text-decoration: underline; text-decoration-color: var(--buff); text-decoration-thickness: 2px; }
+.blurb { margin: 0; color: var(--muted); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 13.5px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.cost.free { color: var(--free); font-weight: 600; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 11.5px; border-radius: 5px; padding: 2px 7px; background: var(--tint); color: var(--ink); }
+.tag.last { background: var(--buff); color: var(--buff-ink); font-weight: 600; }
+.tag.check { background: transparent; border: 1px dashed var(--warn); color: var(--warn); }
+.acts { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+.act { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.act:hover { border-color: var(--green); }
+.act[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: var(--green-ink); }
+.act.link { margin-left: auto; text-decoration: none; color: var(--green); border-color: transparent; font-weight: 600; }
+.empty { border: 1px dashed var(--line); border-radius: 14px; padding: 32px 20px; text-align: center; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px; }
+
+/* Scout note */
+details.scout { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+details.scout summary { cursor: pointer; font-weight: 600; }
+details.scout p { color: var(--muted); margin: 8px 0; max-width: 65ch; }
+details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 20; }
+@media (prefers-reduced-motion: no-preference) { .card { transition: box-shadow 0.25s, border-color 0.25s; } }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <h1>Sydney <span>Weekender</span></h1>
+      <p class="status" id="status"><span class="dot stale"></span>Connecting to the scout's notebook…</p>
+    </div>
+    <button class="surprise" id="surprise" type="button">Surprise us</button>
+  </header>
+
+  <section class="deck" aria-label="Filters">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="row" id="dayrow"><span class="label">Day</span><span id="days" class="row"></span>
+      <button class="chip free" id="free" type="button" aria-pressed="false">Free only</button>
+    </div>
+    <div class="row"><span class="label">Kind</span><span id="cats" class="row"></span></div>
+    <div class="row">
+      <input class="field" id="q" type="search" placeholder="Search finds, suburbs…" aria-label="Search">
+      <select class="field" id="region" aria-label="Part of Sydney"></select>
+      <select class="field" id="sort" aria-label="Sort by">
+        <option value="unusual">Most unusual first</option>
+        <option value="ending">Last chance first</option>
+        <option value="cheap">Cheapest first</option>
+        <option value="new">Newly found first</option>
+      </select>
+      <button class="chip" id="showskip" type="button" aria-pressed="false" hidden>Show skipped</button>
+    </div>
+  </section>
+
+  <p class="count" id="count"></p>
+  <main class="board" id="board">
+    <div class="empty" style="grid-column:1/-1"><strong>Loading this weekend's finds</strong>The scout checks Sydney listings every morning. Finds appear here as soon as the notebook answers.</div>
+  </main>
+
+  <details class="scout">
+    <summary>Tell the scout what you two are after</summary>
+    <p>The scout reads this note, plus what you save, tick off and skip, before each morning's search. Write anything: "more weird little shops", "nothing past Parramatta", "we love night markets".</p>
+    <textarea class="field" id="brief" placeholder="e.g. More free outdoor things in the Inner West. Fewer kids' events."></textarea>
+    <div class="row" style="margin-top:8px"><button class="act" id="savebrief" type="button">Save note</button><span class="count" id="briefstate"></span></div>
+  </details>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var CATS = { pop: "Pop culture", markets: "Markets", outdoors: "Outdoors", art: "Art & exhibitions", stage: "Stage & screen", food: "Food & drink", shops: "Shops & nooks", sport: "Sport" };
+  var REGIONS = ["City", "East", "Inner West", "North", "West", "South", "Further out"];
+  var DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var safeUrl = function (u) { return typeof u === "string" && /^https?:\/\//i.test(u) ? u : ""; };
+
+  // Dates are handled as YYYY-MM-DD strings in Sydney time.
+  function sydneyToday() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
+  function addDays(d, n) { var t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+  function wd(d) { return new Date(d + "T00:00:00Z").getUTCDay(); }
+  function nice(d) { return DOW[wd(d)] + " " + Number(d.slice(8)) + " " + MON[Number(d.slice(5, 7)) - 1]; }
+  function weekend(offset) {
+    var today = sydneyToday(), w = wd(today);
+    var fri = (w === 5 || w === 6 || w === 0) ? addDays(today, -((w + 2) % 7)) : addDays(today, 5 - w);
+    fri = addDays(fri, offset * 7);
+    return [fri, addDays(fri, 1), addDays(fri, 2)];
+  }
+  function onDay(e, d) {
+    if (e.kind === "place") return false;
+    if (e.start && e.start > d) return false;
+    if (e.end && e.end < d) return false;
+    return !Array.isArray(e.days) || e.days.indexOf(wd(d)) !== -1;
+  }
+
+  var prefs = { tab: "this", day: "all", free: false, cats: [], region: "", sort: "unusual", skipped: false };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem("weekender") || "{}")); } catch (e) {}
+  function keep() { try { localStorage.setItem("weekender", JSON.stringify(prefs)); } catch (e) {} }
+
+  var events = [], picks = {}, status = null, loaded = false, query = "", db = null, readOnly = false;
+
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3500); }
+
+  function daysFor(tab) { return tab === "next" ? weekend(1) : weekend(0); }
+  function inTab(e, tab) {
+    var st = picks[e.id];
+    if (tab === "ours") return st === "saved" || st === "done";
+    if (st === "done") return false;
+    if (st === "hidden" && !prefs.skipped) return false;
+    if (tab === "spots") return e.kind === "place";
+    var today = sydneyToday();
+    return daysFor(tab).some(function (d) { return d >= today && onDay(e, d); });
+  }
+  function passes(e) {
+    if (prefs.free && e.cost !== 0) return false;
+    if (prefs.cats.length && prefs.cats.indexOf(e.cat) === -1) return false;
+    if (prefs.region && e.region !== prefs.region) return false;
+    if ((prefs.tab === "this" || prefs.tab === "next") && prefs.day !== "all") {
+      var d = daysFor(prefs.tab)[Number(prefs.day)];
+      if (!onDay(e, d) || d < sydneyToday()) return false;
+    }
+    if (query) {
+      var hay = [e.title, e.blurb, e.area, e.region, CATS[e.cat], e.when].join(" ").toLowerCase();
+      if (hay.indexOf(query) === -1) return false;
+    }
+    return true;
+  }
+  var sorters = {
+    unusual: function (a, b) { return (b.spark || 0) - (a.spark || 0) || String(a.title).localeCompare(b.title); },
+    ending: function (a, b) { return String(a.end || "9999").localeCompare(String(b.end || "9999")) || (b.spark || 0) - (a.spark || 0); },
+    cheap: function (a, b) { var x = a.cost == null ? 1e9 : a.cost, y = b.cost == null ? 1e9 : b.cost; return x - y || (b.spark || 0) - (a.spark || 0); },
+    new: function (a, b) { return String(b.addedAt || "").localeCompare(String(a.addedAt || "")) || (b.spark || 0) - (a.spark || 0); }
+  };
+
+  function renderControls() {
+    var w0 = weekend(0), w1 = weekend(1);
+    var span = function (w) { return Number(w[0].slice(8)) + "–" + Number(w[2].slice(8)) + " " + MON[Number(w[2].slice(5, 7)) - 1]; };
+    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "saved & been"]];
+    $("tabs").innerHTML = tabs.map(function (t) {
+      var n = events.filter(function (e) { return inTab(e, t[0]); }).length;
+      return '<button class="tab" role="tab" type="button" data-tab="' + t[0] + '" aria-selected="' + (prefs.tab === t[0]) + '"><strong>' + t[1] + (loaded ? " · " + n : "") + "</strong><small>" + t[2] + "</small></button>";
+    }).join("");
+    var dated = prefs.tab === "this" || prefs.tab === "next";
+    var ds = daysFor(prefs.tab), today = sydneyToday();
+    $("days").innerHTML = ['<button class="chip" type="button" data-day="all" aria-pressed="' + (prefs.day === "all") + '"' + (dated ? "" : " disabled") + ">All</button>"].concat(ds.map(function (d, i) {
+      return '<button class="chip" type="button" data-day="' + i + '" aria-pressed="' + (dated && prefs.day === String(i)) + '"' + (!dated || d < today ? " disabled" : "") + ">" + nice(d).replace(/ \w+$/, "") + "</button>";
+    })).join("");
+    $("cats").innerHTML = Object.keys(CATS).map(function (k) {
+      return '<button class="chip" type="button" data-cat="' + k + '" aria-pressed="' + (prefs.cats.indexOf(k) !== -1) + '">' + CATS[k] + "</button>";
+    }).join("");
+    $("free").setAttribute("aria-pressed", prefs.free);
+    $("region").innerHTML = '<option value="">All of Sydney</option>' + REGIONS.map(function (r) { return "<option" + (prefs.region === r ? " selected" : "") + ">" + r + "</option>"; }).join("");
+    $("sort").value = prefs.sort;
+    var skipped = events.filter(function (e) { return picks[e.id] === "hidden"; }).length;
+    $("showskip").hidden = !skipped;
+    $("showskip").textContent = (prefs.skipped ? "Hide skipped" : "Show skipped") + " (" + skipped + ")";
+    $("showskip").setAttribute("aria-pressed", prefs.skipped);
+  }
+
+  function card(e) {
+    var st = picks[e.id], ds = daysFor(prefs.tab === "next" ? "next" : "this"), url = safeUrl(e.url);
+    var pips = e.kind === "place" ? "" : '<div class="pips" aria-label="Days on">' + ds.map(function (d) { return '<span class="pip' + (onDay(e, d) ? " on" : "") + '">' + DOW[wd(d)] + "</span>"; }).join("") + "</div>";
+    var cost = e.cost === 0 ? '<span class="cost free">Free</span>' : '<span class="cost">' + esc(e.costText || (e.cost != null ? "$" + e.cost : "See site")) + "</span>";
+    if (e.cost === 0 && e.costText && e.costText.toLowerCase() !== "free") cost += " · " + esc(e.costText);
+    var tags = [];
+    if (e.kind !== "place" && e.end && e.end <= ds[2] && e.end >= ds[0] && e.start && e.start < ds[0]) tags.push('<span class="tag last">Last weekend</span>');
+    if (e.kind === "weekly") tags.push('<span class="tag">Every week</span>');
+    if (e.addedAt && (Date.now() - Date.parse(e.addedAt)) < 3 * 864e5) tags.push('<span class="tag">New find</span>');
+    if (e.check) tags.push('<span class="tag check">Confirm details first</span>');
+    var run = "";
+    if (e.kind === "event" && e.start && e.end && e.start !== e.end) run = " (runs " + nice(e.start).slice(4) + " – " + nice(e.end).slice(4) + ")";
+    return '<article class="card' + (st === "done" ? " been" : "") + '" data-id="' + esc(e.id) + '">' +
+      '<div class="top"><span class="cat">' + esc(CATS[e.cat] || "Find") + "</span>" + pips + "</div>" +
+      "<h2>" + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(e.title) + "</a>" : esc(e.title)) + "</h2>" +
+      '<p class="blurb">' + esc(e.blurb) + "</p>" +
+      '<dl class="facts"><dt>When</dt><dd>' + esc(e.when || "Any time") + esc(run) + "</dd><dt>Where</dt><dd>" + esc(e.area || "") + (e.region ? " · " + esc(e.region) : "") + "</dd><dt>Cost</dt><dd>" + cost + "</dd></dl>" +
+      (tags.length ? '<div class="tags">' + tags.join("") + "</div>" : "") +
+      '<div class="acts">' +
+      '<button class="act" type="button" data-act="saved" aria-pressed="' + (st === "saved") + '">' + (st === "saved" ? "Saved" : "Save") + "</button>" +
+      '<button class="act" type="button" data-act="done" aria-pressed="' + (st === "done") + '">' + (st === "done" ? "Been" : "Been there") + "</button>" +
+      '<button class="act" type="button" data-act="hidden" aria-pressed="' + (st === "hidden") + '">' + (st === "hidden" ? "Skipped" : "Skip") + "</button>" +
+      (url ? '<a class="act link" href="' + esc(url) + '" target="_blank" rel="noopener">Details</a>' : "") +
+      "</div></article>";
+  }
+
+  var shown = [];
+  function render() {
+    renderControls();
+    if (!loaded) return;
+    shown = events.filter(function (e) { return inTab(e, prefs.tab) && passes(e); }).sort(sorters[prefs.sort] || sorters.unusual);
+    var inTabCount = events.filter(function (e) { return inTab(e, prefs.tab); }).length;
+    $("count").textContent = shown.length + (shown.length === 1 ? " find" : " finds") + (shown.length < inTabCount ? " of " + inTabCount + " (filters on)" : "");
+    if (shown.length) { $("board").innerHTML = shown.map(card).join(""); return; }
+    var msg = !events.length ? ["The notebook is empty", "The scout fills it each morning. Check back shortly."]
+      : prefs.tab === "ours" ? ["Nothing on your list yet", "Tap Save on anything that catches your eye and it will wait here for both of you."]
+      : inTabCount ? ["No finds match those filters", "Loosen a filter or clear the search."]
+      : ["Nothing scouted for these dates yet", "Listings usually firm up from Wednesday. Anytime spots are always open."];
+    $("board").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>' + msg[0] + "</strong>" + msg[1] + "</div>";
+  }
+
+  function renderStatus(note) {
+    var el = $("status");
+    if (note) { el.innerHTML = '<span class="dot stale"></span>' + esc(note); return; }
+    if (!status || !status.updatedAt) { el.innerHTML = '<span class="dot"></span><b>' + events.length + " finds</b> in the notebook"; return; }
+    var mins = Math.max(0, Math.round((Date.now() - Date.parse(status.updatedAt)) / 6e4));
+    var ago = mins < 60 ? mins + " min ago" : mins < 2880 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " days ago";
+    el.innerHTML = '<span class="dot' + (mins > 2880 ? " stale" : "") + '"></span>Scouted <b>' + ago + "</b> · <b>" + events.length + " finds</b>" + (status.note ? " · " + esc(status.note) : "");
+  }
+
+  // Controls
+  $("tabs").addEventListener("click", function (ev) { var b = ev.target.closest("[data-tab]"); if (!b) return; prefs.tab = b.dataset.tab; prefs.day = "all"; keep(); render(); });
+  $("days").addEventListener("click", function (ev) { var b = ev.target.closest("[data-day]"); if (!b || b.disabled) return; prefs.day = b.dataset.day; keep(); render(); });
+  $("cats").addEventListener("click", function (ev) { var b = ev.target.closest("[data-cat]"); if (!b) return; var i = prefs.cats.indexOf(b.dataset.cat); if (i === -1) prefs.cats.push(b.dataset.cat); else prefs.cats.splice(i, 1); keep(); render(); });
+  $("free").addEventListener("click", function () { prefs.free = !prefs.free; keep(); render(); });
+  $("showskip").addEventListener("click", function () { prefs.skipped = !prefs.skipped; keep(); render(); });
+  $("region").addEventListener("change", function () { prefs.region = this.value; keep(); render(); });
+  $("sort").addEventListener("change", function () { prefs.sort = this.value; keep(); render(); });
+  $("q").addEventListener("input", function () { query = this.value.trim().toLowerCase(); render(); });
+  $("surprise").addEventListener("click", function () {
+    var pool = shown.filter(function (e) { return !picks[e.id] || picks[e.id] === "saved"; });
+    if (!pool.length) { toast("Nothing to pick from here. Loosen the filters first."); return; }
+    var e = pool[Math.floor(Math.random() * pool.length)];
+    var el = document.querySelector('.card[data-id="' + CSS.escape(e.id) + '"]');
+    if (!el) return;
+    document.querySelectorAll(".card.flash").forEach(function (c) { c.classList.remove("flash"); });
+    el.classList.add("flash"); el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    toast("This weekend: " + e.title);
+  });
+
+  // Memory: one shared pick per find (saved / done / hidden)
+  var busy = {};
+  $("board").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-act]"); if (!b) return;
+    var id = b.closest(".card").dataset.id, act = b.dataset.act;
+    if (!db || readOnly) { toast("This view is read-only, so picks can't be saved here."); return; }
+    if (busy[id]) return;
+    busy[id] = true;
+    var ref = db.doc("picks/" + id);
+    var p = picks[id] === act ? ref.delete() : ref.set({ state: act, at: new Date().toISOString() });
+    p.catch(function (e) { if (e && e.code === "invalid_argument") readOnly = true; toast("Couldn't save that pick. " + (readOnly ? "This view is read-only." : "Try again in a moment.")); })
+     .then(function () { busy[id] = false; });
+  });
+  $("savebrief").addEventListener("click", function () {
+    if (!db || readOnly) { toast("This view is read-only, so the note can't be saved here."); return; }
+    var text = $("brief").value.trim().slice(0, 2000);
+    $("briefstate").textContent = "Saving…";
+    db.doc("meta/brief").set({ text: text, at: new Date().toISOString() })
+      .then(function () { $("briefstate").textContent = "Saved. The scout reads it before the next search."; })
+      .catch(function () { $("briefstate").textContent = "Couldn't save the note. Try again in a moment."; });
+  });
+
+  render();
+
+  // Live data
+  var slow = setTimeout(function () { if (!loaded) renderStatus("Still trying to reach the notebook. Finds will appear when it answers."); }, 10000);
+  function fail() { clearTimeout(slow); renderStatus("The notebook isn't available in this view. Open the page signed in to Claude to see the finds."); if (!loaded) { $("board").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>Finds can\'t load here</strong>Open this page while signed in to Claude.</div>'; } }
+  var useP = window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null);
+  useP.then(function (d) {
+    if (!d) return fail();
+    db = d;
+    db.collection("events").limit(1000).onSnapshot(function (snap) {
+      events = snap.docs.map(function (s) { var x = Object.assign({}, s.data()); x.id = s.id; return x; }).filter(function (e) { return e.title; });
+      if (!snap.metadata.fromCache || events.length) { loaded = true; clearTimeout(slow); }
+      render(); if (loaded) renderStatus();
+    }, fail);
+    db.collection("picks").limit(1000).onSnapshot(function (snap) {
+      picks = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x && x.state) picks[s.id] = x.state; });
+      render();
+    }, function () {});
+    db.collection("meta").onSnapshot(function (snap) {
+      snap.docs.forEach(function (s) {
+        if (s.id === "status") status = s.data();
+        if (s.id === "brief" && document.activeElement !== $("brief")) $("brief").value = (s.data() || {}).text || "";
+      });
+      if (loaded) renderStatus();
+    }, function () {});
+  }, fail);
+})();
+</script>

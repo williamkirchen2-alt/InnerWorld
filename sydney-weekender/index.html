@@ -113,6 +113,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     <div>
       <h1>Sydney <span>Weekender</span></h1>
       <p class="status" id="status"><span class="dot stale"></span>Connecting to the scout's notebook…</p>
+      <button class="act" id="checknow" type="button" style="margin-top:8px">Check what's on now</button>
     </div>
     <button class="surprise" id="surprise" type="button">Surprise us</button>
   </header>
@@ -185,6 +186,12 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
   function keep() { try { localStorage.setItem("weekender", JSON.stringify(prefs)); } catch (e) {} }
 
   var events = [], picks = {}, status = null, loaded = false, query = "", db = null, readOnly = false;
+  var TRIGGER = "trig_01941463NJ24ymRjgtvrB9cE", SERVER = "Claude Code Remote", STALE_MS = 6 * 36e5;
+  var mcp = null, check = null, metaFresh = false, autoTried = false, starting = false;
+  function inFlight() {
+    var t = Math.max(Date.parse((check || {}).requestedAt) || 0, Date.parse((status || {}).runningSince) || 0);
+    return starting || (t > 0 && Date.now() - t < 30 * 6e4 && t > (Date.parse((status || {}).updatedAt) || 0));
+  }
 
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3500); }
 
@@ -288,11 +295,51 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
   function renderStatus(note) {
     var el = $("status");
     if (note) { el.innerHTML = '<span class="dot stale"></span>' + esc(note); return; }
+    if (inFlight()) {
+      var last = status && status.updatedAt ? " Last full check " + ago(status.updatedAt) + "." : "";
+      el.innerHTML = '<span class="dot"></span><b>Checking Sydney listings now.</b> New finds appear here by themselves in a few minutes.' + last; return;
+    }
     if (!status || !status.updatedAt) { el.innerHTML = '<span class="dot"></span><b>' + events.length + " finds</b> in the notebook"; return; }
     var mins = Math.max(0, Math.round((Date.now() - Date.parse(status.updatedAt)) / 6e4));
-    var ago = mins < 60 ? mins + " min ago" : mins < 2880 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " days ago";
-    el.innerHTML = '<span class="dot' + (mins > 2880 ? " stale" : "") + '"></span>Scouted <b>' + ago + "</b> · <b>" + events.length + " finds</b>" + (status.note ? " · " + esc(status.note) : "");
+    el.innerHTML = '<span class="dot' + (mins > 2880 ? " stale" : "") + '"></span>Scouted <b>' + ago(status.updatedAt) + "</b> · <b>" + events.length + " finds</b>" + (status.note ? " · " + esc(status.note) : "");
   }
+
+  function ago(iso) {
+    var mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 6e4));
+    return mins < 60 ? mins + " min ago" : mins < 2880 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " days ago";
+  }
+
+  // Live check: the page itself starts a fresh search of Sydney listings when what it holds is old.
+  var WHY = {
+    not_in_manifest: "Live checks are switched off for this page. Allow the Claude Code connector in the page's Permissions menu.",
+    approval_required: "Starting a check needs your OK. Tap the button again and allow it.",
+    consent_required: "Starting a check needs your OK. Tap the button again and allow it.",
+    server_not_connected: "Live checks need the Claude Code connector, which this account doesn't have here.",
+    needs_reauth: "Reconnect Claude Code in claude.ai Settings, then try again.",
+    blocked_by_policy: "Your organisation's settings block starting a check from this page.",
+    server_unavailable: "The scout couldn't be reached just now. Try again in a minute."
+  };
+  function requestCheck(manual) {
+    if (!mcp || !db) { if (manual) toast("Live checks aren't available in this view. The scout still searches every morning."); return; }
+    if (inFlight()) { if (manual) toast("A check is already running. New finds appear here in a few minutes."); return; }
+    starting = true; renderStatus();
+    db.doc("meta/check").set({ requestedAt: new Date().toISOString() }).catch(function () {})
+      .then(function () { return mcp.callTool(SERVER, "fire_trigger", { trigger_id: TRIGGER }, { cache: false }); })
+      .then(function () { starting = false; renderStatus(); if (manual) toast("Checking Sydney listings. New finds appear here in a few minutes."); },
+        function (e) {
+          starting = false; check = null;
+          db.doc("meta/check").delete().catch(function () {});
+          renderStatus();
+          if (manual || (e && WHY[e.code])) toast(WHY[e && e.code] || "Couldn't start a check. The scout still searches every morning.");
+        });
+  }
+  function maybeAuto() {
+    if (autoTried || !mcp || !loaded || !metaFresh) return;
+    autoTried = true;
+    var last = Date.parse((status || {}).updatedAt) || 0;
+    if (Date.now() - last > STALE_MS) requestCheck(false);
+  }
+  $("checknow").addEventListener("click", function () { requestCheck(true); });
 
   // Controls
   $("tabs").addEventListener("click", function (ev) { var b = ev.target.closest("[data-tab]"); if (!b) return; prefs.tab = b.dataset.tab; prefs.day = "all"; keep(); render(); });
@@ -349,6 +396,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
       events = snap.docs.map(function (s) { var x = Object.assign({}, s.data()); x.id = s.id; return x; }).filter(function (e) { return e.title; });
       if (!snap.metadata.fromCache || events.length) { loaded = true; clearTimeout(slow); }
       render(); if (loaded) renderStatus();
+      maybeAuto();
     }, fail);
     db.collection("picks").limit(1000).onSnapshot(function (snap) {
       picks = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x && x.state) picks[s.id] = x.state; });
@@ -357,10 +405,14 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     db.collection("meta").onSnapshot(function (snap) {
       snap.docs.forEach(function (s) {
         if (s.id === "status") status = s.data();
+        if (s.id === "check") check = s.data();
         if (s.id === "brief" && document.activeElement !== $("brief")) $("brief").value = (s.data() || {}).text || "";
       });
+      if (!snap.metadata.fromCache) metaFresh = true;
       if (loaded) renderStatus();
+      maybeAuto();
     }, function () {});
+    window.claude.use("mcp").then(function (m) { mcp = m; if (!m) $("checknow").hidden = true; maybeAuto(); }, function () { $("checknow").hidden = true; });
   }, fail);
 })();
 </script>

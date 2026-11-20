@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: a ferry-timetable board. Masthead with the weekend's three dates, one control deck, then a two-column board of finds. */
+/* Layout: a ferry-timetable board. Masthead with the weekend's dates and weather, one control deck, then a board of finds. */
 :root {
   --bg: #edf2ee;          /* harbour mist */
   --surface: #fbfcfa;
@@ -16,6 +16,7 @@
   --tint: #dfe9e2;
   --warn: #a4441c;
   --free: #0b6b52;
+  --rain: #2f5f8a;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
   --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
 }
@@ -23,32 +24,36 @@
   :root:not([data-theme="light"]) {
     --bg: #0b1512; --surface: #13211c; --ink: #e6efe9; --muted: #93a79c; --line: #263a32;
     --green: #2f9a78; --green-ink: #06140f; --buff: #f0bd2b; --buff-ink: #2b2206;
-    --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; color-scheme: dark;
+    --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; --rain: #8cbbe6; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0b1512; --surface: #13211c; --ink: #e6efe9; --muted: #93a79c; --line: #263a32;
   --green: #2f9a78; --green-ink: #06140f; --buff: #f0bd2b; --buff-ink: #2b2206;
-  --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; color-scheme: dark;
+  --tint: #1a2c25; --warn: #f09a6e; --free: #5fd0a8; --rain: #8cbbe6; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
-.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px;
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: flex; flex-direction: column; gap: 20px; }
+  display: flex; flex-direction: column; gap: 18px; }
 button, select, input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--buff); outline-offset: 2px; }
+a { color: var(--green); }
 
 /* Masthead */
 .mast { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .mast h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 6vw, 3.1rem); line-height: 0.95; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
 .mast h1 span { color: var(--green); }
-.status { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.status { color: var(--muted); font-size: 13px; margin: 8px 0 0; max-width: 60ch; }
 .status b { color: var(--ink); font-weight: 600; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--free); margin-right: 6px; }
 .dot.stale { background: var(--warn); }
+.mast-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .surprise { background: var(--buff); color: var(--buff-ink); border: 0; border-radius: 999px; padding: 11px 20px; font-weight: 600; cursor: pointer; }
 .surprise:hover { filter: brightness(1.06); }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font-weight: 500; cursor: pointer; }
+.ghost:hover { border-color: var(--green); }
 
 /* Control deck */
 .deck { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -65,15 +70,24 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .chip.free[aria-pressed="true"] { background: var(--free); border-color: var(--free); color: var(--green-ink); }
 .chip:disabled { opacity: 0.4; cursor: default; }
+.chip .wx { color: var(--rain); font-size: 12px; margin-left: 4px; }
+.chip[aria-pressed="true"] .wx { color: inherit; opacity: 0.85; }
 .field { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 10px; min-width: 0; }
 #q { flex: 1 1 160px; }
+
+/* Plan panel */
+.plan { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.plan h2 { font-family: var(--display); font-size: 1.15rem; margin: 0; }
+.plan ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.plan li span { color: var(--muted); font-size: 13px; }
+.plan p { margin: 0; color: var(--muted); }
 
 /* Board */
 .count { color: var(--muted); font-size: 13px; margin: 0; }
 .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 12px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .card.flash { border-color: var(--buff); box-shadow: 0 0 0 3px var(--buff); }
-.card.been { opacity: 0.7; }
+.card.been { opacity: 0.78; }
 .top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
 .cat { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); font-weight: 600; }
 .pips { display: flex; gap: 3px; flex: none; }
@@ -86,16 +100,22 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 13.5px; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.dist { font-variant-numeric: tabular-nums; font-weight: 600; }
 .cost.free { color: var(--free); font-weight: 600; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { font-size: 11.5px; border-radius: 5px; padding: 2px 7px; background: var(--tint); color: var(--ink); }
-.tag.last { background: var(--buff); color: var(--buff-ink); font-weight: 600; }
+.tag.last, .tag.open { background: var(--buff); color: var(--buff-ink); font-weight: 600; }
+.tag.rain { background: transparent; border: 1px solid var(--rain); color: var(--rain); }
 .tag.check { background: transparent; border: 1px dashed var(--warn); color: var(--warn); }
-.acts { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+.tag.fresh { background: var(--green); color: var(--green-ink); }
+.who { font-size: 13px; font-weight: 600; color: var(--green); margin: 0; }
+.acts { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; align-items: center; }
 .act { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
 .act:hover { border-color: var(--green); }
 .act[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: var(--green-ink); }
-.act.link { margin-left: auto; text-decoration: none; color: var(--green); border-color: transparent; font-weight: 600; }
+.links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+.links a { text-decoration: none; }
+.links a:hover { text-decoration: underline; }
 .empty { border: 1px dashed var(--line); border-radius: 14px; padding: 32px 20px; text-align: center; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px; }
 
@@ -113,29 +133,38 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     <div>
       <h1>Sydney <span>Weekender</span></h1>
       <p class="status" id="status"><span class="dot stale"></span>Connecting to the scout's notebook…</p>
-      <button class="act" id="checknow" type="button" style="margin-top:8px">Check what's on now</button>
     </div>
-    <button class="surprise" id="surprise" type="button">Surprise us</button>
+    <div class="mast-actions">
+      <button class="ghost" id="checknow" type="button">Check what's on now</button>
+      <button class="surprise" id="surprise" type="button">Surprise us</button>
+    </div>
   </header>
 
   <section class="deck" aria-label="Filters">
     <div class="tabs" role="tablist" id="tabs"></div>
-    <div class="row" id="dayrow"><span class="label">Day</span><span id="days" class="row"></span>
-      <button class="chip free" id="free" type="button" aria-pressed="false">Free only</button>
-    </div>
+    <div class="row" id="dayrow"><span class="label">Day</span><span id="days" class="row"></span></div>
     <div class="row"><span class="label">Kind</span><span id="cats" class="row"></span></div>
+    <div class="row"><span class="label">Mood</span>
+      <button class="chip free" id="free" type="button" aria-pressed="false">Free only</button>
+      <button class="chip" id="indoor" type="button" aria-pressed="false">Rain-proof</button>
+      <button class="chip" id="evening" type="button" aria-pressed="false">Date night</button>
+      <button class="chip" id="showskip" type="button" aria-pressed="false" hidden>Show skipped</button>
+    </div>
     <div class="row">
       <input class="field" id="q" type="search" placeholder="Search finds, suburbs…" aria-label="Search">
       <select class="field" id="region" aria-label="Part of Sydney"></select>
+      <select class="field" id="home" aria-label="Your home suburb"></select>
       <select class="field" id="sort" aria-label="Sort by">
         <option value="unusual">Most unusual first</option>
+        <option value="near">Closest to home first</option>
         <option value="ending">Last chance first</option>
         <option value="cheap">Cheapest first</option>
         <option value="new">Newly found first</option>
       </select>
-      <button class="chip" id="showskip" type="button" aria-pressed="false" hidden>Show skipped</button>
     </div>
   </section>
+
+  <section class="plan" id="plan" hidden></section>
 
   <p class="count" id="count"></p>
   <main class="board" id="board">
@@ -144,7 +173,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
 
   <details class="scout">
     <summary>Tell the scout what you two are after</summary>
-    <p>The scout reads this note, plus what you save, tick off and skip, before each morning's search. Write anything: "more weird little shops", "nothing past Parramatta", "we love night markets".</p>
+    <p>The scout reads this note before every search, along with what each of you wants, has been to, loved or skipped. Write anything: "more weird little shops", "nothing past Parramatta", "we love night markets".</p>
     <textarea class="field" id="brief" placeholder="e.g. More free outdoor things in the Inner West. Fewer kids' events."></textarea>
     <div class="row" style="margin-top:8px"><button class="act" id="savebrief" type="button">Save note</button><span class="count" id="briefstate"></span></div>
   </details>
@@ -154,16 +183,40 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
 <script>
 (function () {
   "use strict";
-  var CATS = { pop: "Pop culture", markets: "Markets", outdoors: "Outdoors", art: "Art & exhibitions", stage: "Stage & screen", food: "Food & drink", shops: "Shops & nooks", sport: "Sport" };
+  var CATS = { pop: "Pop culture", openings: "New openings", markets: "Markets", outdoors: "Outdoors", art: "Art & museums", music: "Live music", stage: "Stage & screen", food: "Food & drink", shops: "Shops & nooks", learn: "Workshops & tours", sport: "Sport" };
   var REGIONS = ["City", "East", "Inner West", "North", "West", "South", "Further out"];
   var DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Approximate suburb centres, used only to work out distances from home.
+  var SUBURBS = {
+    "Alexandria": [-33.905, 151.195], "Annandale": [-33.881, 151.170], "Artarmon": [-33.809, 151.185], "Ashfield": [-33.888, 151.125], "Auburn": [-33.849, 151.033],
+    "Avalon": [-33.636, 151.329], "Balgowlah": [-33.794, 151.264], "Balmain": [-33.859, 151.179], "Bankstown": [-33.917, 151.035], "Baulkham Hills": [-33.758, 150.993],
+    "Blacktown": [-33.771, 150.906], "Bondi": [-33.891, 151.262], "Bondi Beach": [-33.891, 151.277], "Bondi Junction": [-33.892, 151.250], "Brookvale": [-33.766, 151.270],
+    "Burwood": [-33.877, 151.104], "Camperdown": [-33.889, 151.177], "Campbelltown": [-34.065, 150.814], "Caringbah": [-34.043, 151.122], "Castle Hill": [-33.731, 151.004],
+    "Chatswood": [-33.797, 151.183], "Chippendale": [-33.887, 151.198], "Concord": [-33.860, 151.103], "Coogee": [-33.920, 151.255], "Cremorne": [-33.829, 151.228],
+    "Cronulla": [-34.058, 151.152], "Crows Nest": [-33.826, 151.202], "Darlinghurst": [-33.879, 151.219], "Dee Why": [-33.753, 151.285], "Double Bay": [-33.877, 151.243],
+    "Drummoyne": [-33.852, 151.155], "Dulwich Hill": [-33.905, 151.139], "Enmore": [-33.900, 151.174], "Epping": [-33.773, 151.082], "Erskineville": [-33.902, 151.186],
+    "Fairfield": [-33.872, 150.956], "Five Dock": [-33.867, 151.129], "Glebe": [-33.880, 151.185], "Gladesville": [-33.833, 151.127], "Gordon": [-33.756, 151.154],
+    "Green Square": [-33.907, 151.204], "Haberfield": [-33.881, 151.139], "Homebush": [-33.865, 151.083], "Hornsby": [-33.703, 151.099], "Hurstville": [-33.967, 151.102],
+    "Kensington": [-33.910, 151.222], "Kirribilli": [-33.848, 151.216], "Kogarah": [-33.963, 151.133], "Lane Cove": [-33.815, 151.169], "Leichhardt": [-33.883, 151.157],
+    "Lilyfield": [-33.874, 151.165], "Lindfield": [-33.775, 151.169], "Liverpool": [-33.920, 150.923], "Macquarie Park": [-33.776, 151.126], "Manly": [-33.797, 151.288],
+    "Maroubra": [-33.950, 151.240], "Marrickville": [-33.911, 151.155], "Mascot": [-33.928, 151.188], "Merrylands": [-33.836, 150.992], "Miranda": [-34.034, 151.101],
+    "Mona Vale": [-33.677, 151.303], "Mosman": [-33.829, 151.244], "Narrabeen": [-33.713, 151.297], "Neutral Bay": [-33.833, 151.219], "Newtown": [-33.898, 151.179],
+    "North Sydney": [-33.839, 151.207], "Paddington": [-33.885, 151.227], "Parramatta": [-33.815, 151.001], "Penrith": [-33.751, 150.694], "Petersham": [-33.894, 151.155],
+    "Potts Point": [-33.870, 151.225], "Pyrmont": [-33.870, 151.194], "Randwick": [-33.914, 151.241], "Redfern": [-33.893, 151.204], "Rhodes": [-33.830, 151.087],
+    "Rockdale": [-33.952, 151.137], "Rose Bay": [-33.870, 151.270], "Rouse Hill": [-33.682, 150.915], "Rozelle": [-33.862, 151.171], "Ryde": [-33.815, 151.105],
+    "St Leonards": [-33.823, 151.195], "St Peters": [-33.911, 151.180], "Stanmore": [-33.895, 151.164], "Strathfield": [-33.873, 151.083], "Summer Hill": [-33.891, 151.138],
+    "Surry Hills": [-33.886, 151.211], "Sutherland": [-34.031, 151.058], "Sydney CBD": [-33.869, 151.209], "The Rocks": [-33.859, 151.208], "Ultimo": [-33.879, 151.197],
+    "Vaucluse": [-33.859, 151.278], "Wahroonga": [-33.718, 151.117], "Waterloo": [-33.900, 151.207], "Westmead": [-33.808, 150.987], "Willoughby": [-33.804, 151.199],
+    "Woolloomooloo": [-33.870, 151.220], "Zetland": [-33.907, 151.208]
+  };
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var safeUrl = function (u) { return typeof u === "string" && /^https?:\/\//i.test(u) ? u : ""; };
+  var num = function (v) { return typeof v === "number" && isFinite(v) ? v : null; };
 
-  // Dates are handled as YYYY-MM-DD strings in Sydney time.
+  // Dates are YYYY-MM-DD strings in Sydney time.
   function sydneyToday() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
   function addDays(d, n) { var t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
   function wd(d) { return new Date(d + "T00:00:00Z").getUTCDay(); }
@@ -175,141 +228,259 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     return [fri, addDays(fri, 1), addDays(fri, 2)];
   }
   function onDay(e, d) {
-    if (e.kind === "place") return false;
+    if (e.kind === "place") return !!e.openedOn && e.openedOn === d;
     if (e.start && e.start > d) return false;
     if (e.end && e.end < d) return false;
     return !Array.isArray(e.days) || e.days.indexOf(wd(d)) !== -1;
   }
-
-  var prefs = { tab: "this", day: "all", free: false, cats: [], region: "", sort: "unusual", skipped: false };
-  try { Object.assign(prefs, JSON.parse(localStorage.getItem("weekender") || "{}")); } catch (e) {}
-  function keep() { try { localStorage.setItem("weekender", JSON.stringify(prefs)); } catch (e) {} }
-
-  var events = [], picks = {}, status = null, loaded = false, query = "", db = null, readOnly = false;
-  var TRIGGER = "trig_01941463NJ24ymRjgtvrB9cE", SERVER = "Claude Code Remote", STALE_MS = 6 * 36e5;
-  var mcp = null, check = null, metaFresh = false, autoTried = false, starting = false;
-  function inFlight() {
-    var t = Math.max(Date.parse((check || {}).requestedAt) || 0, Date.parse((status || {}).runningSince) || 0);
-    return starting || (t > 0 && Date.now() - t < 30 * 6e4 && t > (Date.parse((status || {}).updatedAt) || 0));
+  function isOpening(e) {
+    if (e.cat !== "openings" && !e.openedOn) return false;
+    if (!e.openedOn) return true;
+    var today = sydneyToday();
+    return e.openedOn >= addDays(today, -75) && e.openedOn <= addDays(today, 45);
   }
+  function km(a, b) {
+    var R = 6371, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function where(e) { return num(e.lat) !== null && num(e.lng) !== null ? [e.lat, e.lng] : null; }
+  function homePt() { return SUBURBS[home] || null; }
+  function distOf(e) { var a = homePt(), b = where(e); return a && b ? km(a, b) : null; }
+  function fmtKm(k) { return k < 1 ? "under 1 km" : k < 10 ? k.toFixed(1) + " km" : Math.round(k) + " km"; }
 
-  function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3500); }
+  var prefs = { tab: "this", day: "all", free: false, indoor: false, evening: false, cats: [], region: "", sort: "unusual", skipped: false, home: "", lastSeen: "" };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem("weekender") || "{}")); } catch (e) {}
+  var prevSeen = prefs.lastSeen;
+  function keep() { try { localStorage.setItem("weekender", JSON.stringify(prefs)); } catch (e) {} }
+  setTimeout(function () { prefs.lastSeen = new Date().toISOString(); keep(); }, 8000);
+
+  var events = [], picks = {}, status = null, weather = null, loaded = false, query = "", db = null, readOnly = false;
+  var me = "anon", users = null, names = {}, home = prefs.home || "";
+  var TRIGGER = "trig_01941463NJ24ymRjgtvrB9cE", SERVER = "Claude Code Remote", STALE_MS = 20 * 36e5;
+  var mcp = null, check = null, metaFresh = false, autoTried = false, starting = false;
+
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3800); }
+
+  // Picks: one shared doc per find. wants = {personId: time}; state = "done" | "hidden"; rating = "loved" | "meh".
+  function pk(id) {
+    var p = picks[id] || {}, w = Object.assign({}, p.wants || {});
+    if (p.state === "saved") w.anon = w.anon || p.at || true;
+    return { wants: w, state: p.state === "saved" ? null : (p.state || null), rating: p.rating || null };
+  }
+  function wanted(id) { return Object.keys(pk(id).wants).length > 0; }
+  function iWant(id) { return !!pk(id).wants[me]; }
 
   function daysFor(tab) { return tab === "next" ? weekend(1) : weekend(0); }
   function inTab(e, tab) {
-    var st = picks[e.id];
-    if (tab === "ours") return st === "saved" || st === "done";
-    if (st === "done") return false;
-    if (st === "hidden" && !prefs.skipped) return false;
+    var p = pk(e.id);
+    if (tab === "ours") return wanted(e.id) || p.state === "done";
+    if (p.state === "done") return false;
+    if (p.state === "hidden" && !prefs.skipped) return false;
+    if (tab === "openings") return isOpening(e);
     if (tab === "spots") return e.kind === "place";
     var today = sydneyToday();
     return daysFor(tab).some(function (d) { return d >= today && onDay(e, d); });
   }
   function passes(e) {
     if (prefs.free && e.cost !== 0) return false;
-    if (prefs.cats.length && prefs.cats.indexOf(e.cat) === -1) return false;
+    if (prefs.indoor && e.setting === "outdoor") return false;
+    if (prefs.evening && !e.evening) return false;
+    if (prefs.cats.length && prefs.cats.indexOf(e.cat) === -1 && !(prefs.cats.indexOf("openings") !== -1 && isOpening(e))) return false;
     if (prefs.region && e.region !== prefs.region) return false;
     if ((prefs.tab === "this" || prefs.tab === "next") && prefs.day !== "all") {
       var d = daysFor(prefs.tab)[Number(prefs.day)];
       if (!onDay(e, d) || d < sydneyToday()) return false;
     }
     if (query) {
-      var hay = [e.title, e.blurb, e.area, e.region, CATS[e.cat], e.when].join(" ").toLowerCase();
+      var hay = [e.title, e.blurb, e.area, e.address, e.region, CATS[e.cat], e.when, e.transit].join(" ").toLowerCase();
       if (hay.indexOf(query) === -1) return false;
     }
     return true;
   }
+  var bySpark = function (a, b) { return (b.spark || 0) - (a.spark || 0) || String(a.title).localeCompare(b.title); };
   var sorters = {
-    unusual: function (a, b) { return (b.spark || 0) - (a.spark || 0) || String(a.title).localeCompare(b.title); },
-    ending: function (a, b) { return String(a.end || "9999").localeCompare(String(b.end || "9999")) || (b.spark || 0) - (a.spark || 0); },
-    cheap: function (a, b) { var x = a.cost == null ? 1e9 : a.cost, y = b.cost == null ? 1e9 : b.cost; return x - y || (b.spark || 0) - (a.spark || 0); },
-    new: function (a, b) { return String(b.addedAt || "").localeCompare(String(a.addedAt || "")) || (b.spark || 0) - (a.spark || 0); }
+    unusual: bySpark,
+    near: function (a, b) { var x = distOf(a), y = distOf(b); return (x == null ? 1e9 : x) - (y == null ? 1e9 : y) || bySpark(a, b); },
+    ending: function (a, b) { return String(a.end || "9999").localeCompare(String(b.end || "9999")) || bySpark(a, b); },
+    cheap: function (a, b) { var x = a.cost == null ? 1e9 : a.cost, y = b.cost == null ? 1e9 : b.cost; return x - y || bySpark(a, b); },
+    new: function (a, b) { return String(b.addedAt || "").localeCompare(String(a.addedAt || "")) || bySpark(a, b); }
   };
+  function wx(d) { var w = weather && weather.days && weather.days[d]; return w && typeof w === "object" ? w : null; }
 
   function renderControls() {
     var w0 = weekend(0), w1 = weekend(1);
     var span = function (w) { return Number(w[0].slice(8)) + "–" + Number(w[2].slice(8)) + " " + MON[Number(w[2].slice(5, 7)) - 1]; };
-    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "saved & been"]];
+    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["openings", "New openings", "shops, bars, cafes"], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "wants & been"]];
     $("tabs").innerHTML = tabs.map(function (t) {
       var n = events.filter(function (e) { return inTab(e, t[0]); }).length;
       return '<button class="tab" role="tab" type="button" data-tab="' + t[0] + '" aria-selected="' + (prefs.tab === t[0]) + '"><strong>' + t[1] + (loaded ? " · " + n : "") + "</strong><small>" + t[2] + "</small></button>";
     }).join("");
-    var dated = prefs.tab === "this" || prefs.tab === "next";
+    var dated = prefs.tab === "this" || prefs.tab === "next" || prefs.tab === "ours";
     var ds = daysFor(prefs.tab), today = sydneyToday();
     $("days").innerHTML = ['<button class="chip" type="button" data-day="all" aria-pressed="' + (prefs.day === "all") + '"' + (dated ? "" : " disabled") + ">All</button>"].concat(ds.map(function (d, i) {
-      return '<button class="chip" type="button" data-day="' + i + '" aria-pressed="' + (dated && prefs.day === String(i)) + '"' + (!dated || d < today ? " disabled" : "") + ">" + nice(d).replace(/ \w+$/, "") + "</button>";
+      var w = wx(d), wtxt = w ? '<span class="wx">' + (num(w.max) !== null ? Math.round(w.max) + "°" : "") + (num(w.rain) !== null ? " · " + Math.round(w.rain) + "% rain" : "") + "</span>" : "";
+      return '<button class="chip" type="button" data-day="' + i + '" aria-pressed="' + (dated && prefs.day === String(i)) + '"' + (!dated || d < today ? " disabled" : "") + (w && w.text ? ' title="' + esc(w.text) + '"' : "") + ">" + DOW[wd(d)] + " " + Number(d.slice(8)) + wtxt + "</button>";
     })).join("");
     $("cats").innerHTML = Object.keys(CATS).map(function (k) {
       return '<button class="chip" type="button" data-cat="' + k + '" aria-pressed="' + (prefs.cats.indexOf(k) !== -1) + '">' + CATS[k] + "</button>";
     }).join("");
-    $("free").setAttribute("aria-pressed", prefs.free);
+    ["free", "indoor", "evening"].forEach(function (k) { $(k).setAttribute("aria-pressed", prefs[k]); });
     $("region").innerHTML = '<option value="">All of Sydney</option>' + REGIONS.map(function (r) { return "<option" + (prefs.region === r ? " selected" : "") + ">" + r + "</option>"; }).join("");
+    $("home").innerHTML = '<option value="">Set your home suburb</option>' + Object.keys(SUBURBS).map(function (s) { return "<option" + (home === s ? " selected" : "") + ">" + s + "</option>"; }).join("");
     $("sort").value = prefs.sort;
-    var skipped = events.filter(function (e) { return picks[e.id] === "hidden"; }).length;
+    var skipped = events.filter(function (e) { return pk(e.id).state === "hidden"; }).length;
     $("showskip").hidden = !skipped;
     $("showskip").textContent = (prefs.skipped ? "Hide skipped" : "Show skipped") + " (" + skipped + ")";
     $("showskip").setAttribute("aria-pressed", prefs.skipped);
   }
 
+  function whoLine(id) {
+    var ids = Object.keys(pk(id).wants);
+    if (!ids.length) return "";
+    var mine = ids.indexOf(me) !== -1, others = ids.filter(function (x) { return x !== me; });
+    var nm = function (x) { return x === "anon" ? "Someone" : (names[x] || "Your partner"); };
+    if (mine && others.length) return "You both want this";
+    if (mine) return "You want this";
+    return others.length > 1 ? "Both of them want this" : nm(others[0]) + " wants this";
+  }
+  function mapUrl(e) {
+    var q = [e.title, e.address || e.area, "Sydney NSW"].filter(Boolean).join(", ");
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+  }
+  function calUrl(e, d) {
+    var z = function (x) { return x.replace(/-/g, ""); };
+    var p = { action: "TEMPLATE", text: e.title, dates: z(d) + "/" + z(addDays(d, 1)), details: [e.when, e.blurb, safeUrl(e.url)].filter(Boolean).join("\n"), location: [e.address || e.area, "Sydney NSW"].filter(Boolean).join(", ") };
+    return "https://calendar.google.com/calendar/render?" + Object.keys(p).map(function (k) { return k + "=" + encodeURIComponent(p[k]); }).join("&");
+  }
+  function firstDay(e) {
+    var ds = daysFor(prefs.tab === "next" ? "next" : "this"), today = sydneyToday();
+    if ((prefs.tab === "this" || prefs.tab === "next") && prefs.day !== "all") return ds[Number(prefs.day)];
+    var hit = ds.filter(function (d) { return d >= today && onDay(e, d); })[0];
+    if (hit) return hit;
+    if (e.kind === "event" && e.start) return e.start > today ? e.start : null;
+    return null;
+  }
+
   function card(e) {
-    var st = picks[e.id], ds = daysFor(prefs.tab === "next" ? "next" : "this"), url = safeUrl(e.url);
+    var p = pk(e.id), ds = daysFor(prefs.tab === "next" ? "next" : "this"), url = safeUrl(e.url), today = sydneyToday();
     var pips = e.kind === "place" ? "" : '<div class="pips" aria-label="Days on">' + ds.map(function (d) { return '<span class="pip' + (onDay(e, d) ? " on" : "") + '">' + DOW[wd(d)] + "</span>"; }).join("") + "</div>";
     var cost = e.cost === 0 ? '<span class="cost free">Free</span>' : '<span class="cost">' + esc(e.costText || (e.cost != null ? "$" + e.cost : "See site")) + "</span>";
     if (e.cost === 0 && e.costText && e.costText.toLowerCase() !== "free") cost += " · " + esc(e.costText);
     var tags = [];
+    if (e.openedOn) tags.push('<span class="tag open">' + (e.openedOn > today ? "Opens " : "Opened ") + esc(nice(e.openedOn)) + "</span>");
     if (e.kind !== "place" && e.end && e.end <= ds[2] && e.end >= ds[0] && e.start && e.start < ds[0]) tags.push('<span class="tag last">Last weekend</span>');
     if (e.kind === "weekly") tags.push('<span class="tag">Every week</span>');
-    if (e.addedAt && (Date.now() - Date.parse(e.addedAt)) < 3 * 864e5) tags.push('<span class="tag">New find</span>');
+    if (e.setting === "outdoor") {
+      var wet = ds.filter(function (d) { var w = wx(d); return d >= today && (e.kind === "place" || onDay(e, d)) && w && num(w.rain) !== null && w.rain >= 60; });
+      if (wet.length) tags.push('<span class="tag rain">Rain likely ' + wet.map(function (d) { return DOW[wd(d)]; }).join(", ") + "</span>");
+    }
+    if (e.evening) tags.push('<span class="tag">Evening</span>');
+    if (e.booking) tags.push('<span class="tag">Book ahead</span>');
+    if (prevSeen && e.addedAt && e.addedAt > prevSeen) tags.push('<span class="tag fresh">New since you looked</span>');
+    else if (!prevSeen && e.addedAt && (Date.now() - Date.parse(e.addedAt)) < 3 * 864e5) tags.push('<span class="tag fresh">New find</span>');
     if (e.check) tags.push('<span class="tag check">Confirm details first</span>');
     var run = "";
     if (e.kind === "event" && e.start && e.end && e.start !== e.end) run = " (runs " + nice(e.start).slice(4) + " – " + nice(e.end).slice(4) + ")";
-    return '<article class="card' + (st === "done" ? " been" : "") + '" data-id="' + esc(e.id) + '">' +
+    var d = distOf(e), dist = d != null ? '<span class="dist">' + fmtKm(d) + "</span> from " + esc(home) : "";
+    var whereTxt = esc(e.address || e.area || "") + (e.address && e.area && e.address.indexOf(e.area) === -1 ? " · " + esc(e.area) : "") + (e.region ? " · " + esc(e.region) : "");
+    var cd = firstDay(e), who = whoLine(e.id);
+    var acts;
+    if (p.state === "done") {
+      acts = '<button class="act" type="button" data-act="rate" data-v="loved" aria-pressed="' + (p.rating === "loved") + '">Loved it</button>' +
+        '<button class="act" type="button" data-act="rate" data-v="meh" aria-pressed="' + (p.rating === "meh") + '">Not again</button>' +
+        '<button class="act" type="button" data-act="done" aria-pressed="true">Been</button>';
+    } else {
+      acts = '<button class="act" type="button" data-act="want" aria-pressed="' + iWant(e.id) + '">' + (iWant(e.id) ? "I want this" : "I'd go") + "</button>" +
+        '<button class="act" type="button" data-act="done" aria-pressed="false">Been there</button>' +
+        '<button class="act" type="button" data-act="hidden" aria-pressed="' + (p.state === "hidden") + '">' + (p.state === "hidden" ? "Skipped" : "Skip") + "</button>";
+    }
+    return '<article class="card' + (p.state === "done" ? " been" : "") + '" data-id="' + esc(e.id) + '">' +
       '<div class="top"><span class="cat">' + esc(CATS[e.cat] || "Find") + "</span>" + pips + "</div>" +
       "<h2>" + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(e.title) + "</a>" : esc(e.title)) + "</h2>" +
+      (who ? '<p class="who">' + esc(who) + "</p>" : "") +
       '<p class="blurb">' + esc(e.blurb) + "</p>" +
-      '<dl class="facts"><dt>When</dt><dd>' + esc(e.when || "Any time") + esc(run) + "</dd><dt>Where</dt><dd>" + esc(e.area || "") + (e.region ? " · " + esc(e.region) : "") + "</dd><dt>Cost</dt><dd>" + cost + "</dd></dl>" +
+      '<dl class="facts"><dt>When</dt><dd>' + esc(e.when || "Any time") + esc(run) + "</dd>" +
+      "<dt>Where</dt><dd>" + whereTxt + "</dd>" +
+      (dist ? "<dt>Distance</dt><dd>" + dist + "</dd>" : "") +
+      (e.transit ? "<dt>Getting there</dt><dd>" + esc(e.transit) + "</dd>" : "") +
+      "<dt>Cost</dt><dd>" + cost + "</dd></dl>" +
       (tags.length ? '<div class="tags">' + tags.join("") + "</div>" : "") +
-      '<div class="acts">' +
-      '<button class="act" type="button" data-act="saved" aria-pressed="' + (st === "saved") + '">' + (st === "saved" ? "Saved" : "Save") + "</button>" +
-      '<button class="act" type="button" data-act="done" aria-pressed="' + (st === "done") + '">' + (st === "done" ? "Been" : "Been there") + "</button>" +
-      '<button class="act" type="button" data-act="hidden" aria-pressed="' + (st === "hidden") + '">' + (st === "hidden" ? "Skipped" : "Skip") + "</button>" +
-      (url ? '<a class="act link" href="' + esc(url) + '" target="_blank" rel="noopener">Details</a>' : "") +
-      "</div></article>";
+      '<div class="links"><a href="' + esc(mapUrl(e)) + '" target="_blank" rel="noopener">Map</a>' +
+      (cd ? '<a href="' + esc(calUrl(e, cd)) + '" target="_blank" rel="noopener">Add to calendar</a>' : "") +
+      (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">Details</a>' : "") + "</div>" +
+      '<div class="acts">' + acts + "</div></article>";
+  }
+
+  // Day planner for "Our list": orders the finds you want into a route from home.
+  var planText = "";
+  function renderPlan() {
+    var el = $("plan");
+    if (prefs.tab !== "ours" || !loaded) { el.hidden = true; return; }
+    el.hidden = false;
+    var ds = daysFor("this"), today = sydneyToday();
+    var d = prefs.day !== "all" ? ds[Number(prefs.day)] : ds.filter(function (x) { return x >= today && wd(x) !== 5; })[0] || ds[2];
+    var pool = events.filter(function (e) { return wanted(e.id) && pk(e.id).state !== "done" && (e.kind === "place" || onDay(e, d)); });
+    if (!pool.length) {
+      el.innerHTML = "<h2>Plan " + esc(nice(d)) + "</h2><p>Tap \"I'd go\" on a few finds and this turns them into a route for the day. Pick a day above to plan a different one.</p>";
+      planText = ""; return;
+    }
+    var start = homePt(), left = pool.slice(), route = [], cur = start;
+    if (!cur) { left.sort(function (a, b) { return Number(!!b.evening === false) - Number(!!a.evening === false); }); route = left; }
+    else {
+      while (left.length) {
+        var bi = 0, bd = Infinity;
+        left.forEach(function (e, i) { var w = where(e), k = w ? km(cur, w) : 1e6; if (e.evening) k += 500; if (k < bd) { bd = k; bi = i; } });
+        var nx = left.splice(bi, 1)[0]; route.push(nx); cur = where(nx) || cur;
+      }
+    }
+    var pts = route.map(function (e) { var w = where(e); return w ? w[0].toFixed(5) + "," + w[1].toFixed(5) : (e.address || e.title) + ", Sydney"; });
+    var dir = "https://www.google.com/maps/dir/?api=1" + (start ? "&origin=" + start.join(",") : "") + "&destination=" + encodeURIComponent(pts[pts.length - 1]) + (pts.length > 1 ? "&waypoints=" + encodeURIComponent(pts.slice(0, -1).join("|")) : "");
+    var w = wx(d);
+    planText = "Our plan for " + nice(d) + ":\n" + route.map(function (e, i) { return (i + 1) + ". " + e.title + " – " + (e.when || "any time") + " – " + (e.address || e.area || ""); }).join("\n") + "\nRoute: " + dir;
+    el.innerHTML = "<h2>Plan " + esc(nice(d)) + (w && num(w.max) !== null ? " · " + Math.round(w.max) + "°" + (num(w.rain) !== null ? ", " + Math.round(w.rain) + "% rain" : "") : "") + "</h2>" +
+      "<ol>" + route.map(function (e) { var k = distOf(e); return "<li><b>" + esc(e.title) + "</b> <span>" + esc(e.when || "") + (e.area ? " · " + esc(e.area) : "") + (k != null ? " · " + fmtKm(k) + " from home" : "") + "</span></li>"; }).join("") + "</ol>" +
+      (start ? "" : "<p>Set your home suburb to get these in a sensible order.</p>") +
+      '<div class="row"><a class="act" href="' + esc(dir) + '" target="_blank" rel="noopener">Open route in Google Maps</a><button class="act" type="button" id="copyplan">Copy plan to send</button></div>';
   }
 
   var shown = [];
   function render() {
     renderControls();
+    renderPlan();
     if (!loaded) return;
-    shown = events.filter(function (e) { return inTab(e, prefs.tab) && passes(e); }).sort(sorters[prefs.sort] || sorters.unusual);
+    shown = events.filter(function (e) { return inTab(e, prefs.tab) && passes(e); }).sort(sorters[prefs.sort] || bySpark);
     var inTabCount = events.filter(function (e) { return inTab(e, prefs.tab); }).length;
-    $("count").textContent = shown.length + (shown.length === 1 ? " find" : " finds") + (shown.length < inTabCount ? " of " + inTabCount + " (filters on)" : "");
+    $("count").textContent = shown.length + (shown.length === 1 ? " find" : " finds") + (shown.length < inTabCount ? " of " + inTabCount + " (filters on)" : "") + (prefs.sort === "near" && !home ? " · set your home suburb to sort by distance" : "");
     if (shown.length) { $("board").innerHTML = shown.map(card).join(""); return; }
     var msg = !events.length ? ["The notebook is empty", "The scout fills it each morning. Check back shortly."]
-      : prefs.tab === "ours" ? ["Nothing on your list yet", "Tap Save on anything that catches your eye and it will wait here for both of you."]
+      : prefs.tab === "ours" ? ["Nothing on your list yet", "Tap \"I'd go\" on anything that catches your eye. When you both pick the same thing, it says so here."]
+      : prefs.tab === "openings" ? ["No new openings logged yet", "The scout adds new shops, bars and cafes each morning."]
       : inTabCount ? ["No finds match those filters", "Loosen a filter or clear the search."]
       : ["Nothing scouted for these dates yet", "Listings usually firm up from Wednesday. Anytime spots are always open."];
     $("board").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>' + msg[0] + "</strong>" + msg[1] + "</div>";
-  }
-
-  function renderStatus(note) {
-    var el = $("status");
-    if (note) { el.innerHTML = '<span class="dot stale"></span>' + esc(note); return; }
-    if (inFlight()) {
-      var last = status && status.updatedAt ? " Last full check " + ago(status.updatedAt) + "." : "";
-      el.innerHTML = '<span class="dot"></span><b>Checking Sydney listings now.</b> New finds appear here by themselves in a few minutes.' + last; return;
-    }
-    if (!status || !status.updatedAt) { el.innerHTML = '<span class="dot"></span><b>' + events.length + " finds</b> in the notebook"; return; }
-    var mins = Math.max(0, Math.round((Date.now() - Date.parse(status.updatedAt)) / 6e4));
-    el.innerHTML = '<span class="dot' + (mins > 2880 ? " stale" : "") + '"></span>Scouted <b>' + ago(status.updatedAt) + "</b> · <b>" + events.length + " finds</b>" + (status.note ? " · " + esc(status.note) : "");
   }
 
   function ago(iso) {
     var mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 6e4));
     return mins < 60 ? mins + " min ago" : mins < 2880 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " days ago";
   }
+  function inFlight() {
+    var t = Math.max(Date.parse((check || {}).requestedAt) || 0, Date.parse((status || {}).runningSince) || 0);
+    return starting || (t > 0 && Date.now() - t < 20 * 6e4 && t > (Date.parse((status || {}).updatedAt) || 0));
+  }
+  function renderStatus(note) {
+    var el = $("status");
+    if (note) { el.innerHTML = '<span class="dot stale"></span>' + esc(note); return; }
+    if (inFlight()) {
+      el.innerHTML = '<span class="dot"></span><b>Checking Sydney listings now.</b> New finds appear here by themselves in a few minutes.' + (status && status.updatedAt ? " Last full check " + ago(status.updatedAt) + "." : ""); return;
+    }
+    if (!status || !status.updatedAt) { el.innerHTML = '<span class="dot"></span><b>' + events.length + " finds</b> in the notebook"; return; }
+    var mins = Math.max(0, Math.round((Date.now() - Date.parse(status.updatedAt)) / 6e4));
+    el.innerHTML = '<span class="dot' + (mins > 2880 ? " stale" : "") + '"></span>Scouted <b>' + ago(status.updatedAt) + "</b> · <b>" + events.length + " finds</b>" + (status.note ? " · " + esc(status.note) : "");
+  }
 
-  // Live check: the page itself starts a fresh search of Sydney listings when what it holds is old.
+  // Live check: the page starts a fresh search of Sydney listings when what it holds is old.
   var WHY = {
     not_in_manifest: "Live checks are switched off for this page. Allow the Claude Code connector in the page's Permissions menu.",
     approval_required: "Starting a check needs your OK. Tap the button again and allow it.",
@@ -339,40 +510,60 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     var last = Date.parse((status || {}).updatedAt) || 0;
     if (Date.now() - last > STALE_MS) requestCheck(false);
   }
-  $("checknow").addEventListener("click", function () { requestCheck(true); });
 
   // Controls
+  $("checknow").addEventListener("click", function () { requestCheck(true); });
   $("tabs").addEventListener("click", function (ev) { var b = ev.target.closest("[data-tab]"); if (!b) return; prefs.tab = b.dataset.tab; prefs.day = "all"; keep(); render(); });
   $("days").addEventListener("click", function (ev) { var b = ev.target.closest("[data-day]"); if (!b || b.disabled) return; prefs.day = b.dataset.day; keep(); render(); });
   $("cats").addEventListener("click", function (ev) { var b = ev.target.closest("[data-cat]"); if (!b) return; var i = prefs.cats.indexOf(b.dataset.cat); if (i === -1) prefs.cats.push(b.dataset.cat); else prefs.cats.splice(i, 1); keep(); render(); });
-  $("free").addEventListener("click", function () { prefs.free = !prefs.free; keep(); render(); });
+  ["free", "indoor", "evening"].forEach(function (k) { $(k).addEventListener("click", function () { prefs[k] = !prefs[k]; keep(); render(); }); });
   $("showskip").addEventListener("click", function () { prefs.skipped = !prefs.skipped; keep(); render(); });
   $("region").addEventListener("change", function () { prefs.region = this.value; keep(); render(); });
   $("sort").addEventListener("change", function () { prefs.sort = this.value; keep(); render(); });
+  $("home").addEventListener("change", function () {
+    home = this.value; prefs.home = home; keep();
+    if (home && prefs.sort === "unusual") { prefs.sort = "near"; keep(); }
+    render();
+    if (db && !readOnly) db.doc("meta/home").set({ suburb: home, at: new Date().toISOString() }).catch(function () {});
+  });
   $("q").addEventListener("input", function () { query = this.value.trim().toLowerCase(); render(); });
+  $("plan").addEventListener("click", function (ev) {
+    if (!ev.target.closest("#copyplan") || !planText) return;
+    var done = function () { toast("Plan copied. Paste it into a message."); };
+    var fallback = function () {
+      var t = document.createElement("textarea"); t.value = planText; t.className = "field"; t.style.width = "100%"; t.rows = 6;
+      $("plan").appendChild(t); t.focus(); t.select(); toast("Select all and copy the plan below.");
+    };
+    try { navigator.clipboard.writeText(planText).then(done, fallback); } catch (e) { fallback(); }
+  });
   $("surprise").addEventListener("click", function () {
-    var pool = shown.filter(function (e) { return !picks[e.id] || picks[e.id] === "saved"; });
+    var pool = shown.filter(function (e) { return pk(e.id).state !== "hidden" && pk(e.id).state !== "done"; });
     if (!pool.length) { toast("Nothing to pick from here. Loosen the filters first."); return; }
     var e = pool[Math.floor(Math.random() * pool.length)];
     var el = document.querySelector('.card[data-id="' + CSS.escape(e.id) + '"]');
     if (!el) return;
     document.querySelectorAll(".card.flash").forEach(function (c) { c.classList.remove("flash"); });
     el.classList.add("flash"); el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    toast("This weekend: " + e.title);
+    toast("How about: " + e.title);
   });
 
-  // Memory: one shared pick per find (saved / done / hidden)
   var busy = {};
   $("board").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-act]"); if (!b) return;
     var id = b.closest(".card").dataset.id, act = b.dataset.act;
     if (!db || readOnly) { toast("This view is read-only, so picks can't be saved here."); return; }
     if (busy[id]) return;
+    var p = pk(id), next = { wants: Object.assign({}, p.wants), at: new Date().toISOString() };
+    if (p.state) next.state = p.state;
+    if (p.rating) next.rating = p.rating;
+    if (act === "want") { if (next.wants[me]) delete next.wants[me]; else { next.wants[me] = next.at; if (next.state === "hidden") delete next.state; } }
+    if (act === "done") { if (next.state === "done") { delete next.state; delete next.rating; } else next.state = "done"; }
+    if (act === "hidden") { if (next.state === "hidden") delete next.state; else { next.state = "hidden"; delete next.wants[me]; } }
+    if (act === "rate") { if (next.rating === b.dataset.v) delete next.rating; else next.rating = b.dataset.v; }
     busy[id] = true;
-    var ref = db.doc("picks/" + id);
-    var p = picks[id] === act ? ref.delete() : ref.set({ state: act, at: new Date().toISOString() });
-    p.catch(function (e) { if (e && e.code === "invalid_argument") readOnly = true; toast("Couldn't save that pick. " + (readOnly ? "This view is read-only." : "Try again in a moment.")); })
-     .then(function () { busy[id] = false; });
+    db.doc("picks/" + id).set(next)
+      .catch(function (e) { if (e && e.code === "invalid_argument") readOnly = true; toast("Couldn't save that. " + (readOnly ? "This view is read-only." : "Try again in a moment.")); })
+      .then(function () { busy[id] = false; });
   });
   $("savebrief").addEventListener("click", function () {
     if (!db || readOnly) { toast("This view is read-only, so the note can't be saved here."); return; }
@@ -383,13 +574,29 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
       .catch(function () { $("briefstate").textContent = "Couldn't save the note. Try again in a moment."; });
   });
 
+  function resolveNames() {
+    if (!users) return;
+    var ids = {};
+    Object.keys(picks).forEach(function (k) { Object.keys(pk(k).wants).forEach(function (u) { if (u !== "anon" && u !== me) ids[u] = 1; }); });
+    var list = Object.keys(ids);
+    if (!list.length) return;
+    users.profiles(list).then(function (ps) {
+      var changed = false;
+      list.forEach(function (u) { var n = (ps[u] && ps[u].name) || ""; if (n && names[u] !== n) { names[u] = n.split(" ")[0]; changed = true; } });
+      if (changed) render();
+    }, function () {});
+  }
+
   render();
 
   // Live data
   var slow = setTimeout(function () { if (!loaded) renderStatus("Still trying to reach the notebook. Finds will appear when it answers."); }, 10000);
   function fail() { clearTimeout(slow); renderStatus("The notebook isn't available in this view. Open the page signed in to Claude to see the finds."); if (!loaded) { $("board").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>Finds can\'t load here</strong>Open this page while signed in to Claude.</div>'; } }
-  var useP = window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null);
-  useP.then(function (d) {
+  var C = window.claude && window.claude.use ? window.claude : null;
+  var useP = C ? C.use("db") : Promise.resolve(null);
+  var userP = C ? C.use("user").then(function (u) { users = u; return u ? u.id() : null; }).then(function (id) { if (id) me = id; }, function () {}) : Promise.resolve();
+  Promise.all([useP, userP]).then(function (r) {
+    var d = r[0];
     if (!d) return fail();
     db = d;
     db.collection("events").limit(1000).onSnapshot(function (snap) {
@@ -399,20 +606,24 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
       maybeAuto();
     }, fail);
     db.collection("picks").limit(1000).onSnapshot(function (snap) {
-      picks = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x && x.state) picks[s.id] = x.state; });
-      render();
+      picks = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x) picks[s.id] = x; });
+      render(); resolveNames();
     }, function () {});
     db.collection("meta").onSnapshot(function (snap) {
       snap.docs.forEach(function (s) {
-        if (s.id === "status") status = s.data();
-        if (s.id === "check") check = s.data();
-        if (s.id === "brief" && document.activeElement !== $("brief")) $("brief").value = (s.data() || {}).text || "";
+        var x = s.data() || {};
+        if (s.id === "status") status = x;
+        if (s.id === "check") check = x;
+        if (s.id === "weather") weather = x;
+        if (s.id === "home" && x.suburb && SUBURBS[x.suburb] && !prefs.home) { home = x.suburb; }
+        if (s.id === "brief" && document.activeElement !== $("brief")) $("brief").value = x.text || "";
       });
       if (!snap.metadata.fromCache) metaFresh = true;
+      render();
       if (loaded) renderStatus();
       maybeAuto();
     }, function () {});
-    window.claude.use("mcp").then(function (m) { mcp = m; if (!m) $("checknow").hidden = true; maybeAuto(); }, function () { $("checknow").hidden = true; });
+    C.use("mcp").then(function (m) { mcp = m; if (!m) $("checknow").hidden = true; maybeAuto(); }, function () { $("checknow").hidden = true; });
   }, fail);
 })();
 </script>

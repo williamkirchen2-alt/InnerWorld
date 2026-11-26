@@ -141,6 +141,8 @@ details.picks summary { cursor: pointer; font-weight: 600; }
 .links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
 .links a { text-decoration: none; }
 .links a:hover { text-decoration: underline; }
+.group { grid-column: 1 / -1; font-family: var(--display); font-size: 1.1rem; margin: 10px 0 0; }
+.group span { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
 .empty { border: 1px dashed var(--line); border-radius: 14px; padding: 32px 20px; text-align: center; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px; }
 
@@ -264,6 +266,10 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     var today = sydneyToday();
     return e.openedOn >= addDays(today, -75) && e.openedOn <= addDays(today, 45);
   }
+  // Shops and openings: places that are worth a visit on any day they are open.
+  function isShopFind(e) { return e.kind === "place" && (e.cat === "shops" || isOpening(e)); }
+  function openOn(e, d) { return isShopFind(e) && (!e.openedOn || e.openedOn <= d); }
+  function newThisWeek(e) { var t = sydneyToday(); return !!e.openedOn && e.openedOn >= addDays(t, -7) && e.openedOn <= addDays(t, 7); }
   function km(a, b) {
     var R = 6371, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
     var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
@@ -302,10 +308,10 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     if (tab === "ours") return wanted(e.id) || p.state === "done";
     if (p.state === "done") return false;
     if (p.state === "hidden" && !prefs.skipped) return false;
-    if (tab === "openings") return isOpening(e);
+    if (tab === "openings") return isShopFind(e);
     if (tab === "spots") return e.kind === "place";
     var today = sydneyToday();
-    return daysFor(tab).some(function (d) { return d >= today && onDay(e, d); });
+    return daysFor(tab).some(function (d) { return d >= today && (onDay(e, d) || openOn(e, d)); });
   }
   function passes(e) {
     if (prefs.free && e.cost !== 0) return false;
@@ -315,7 +321,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     if (prefs.region && e.region !== prefs.region) return false;
     if ((prefs.tab === "this" || prefs.tab === "next") && prefs.day !== "all") {
       var d = daysFor(prefs.tab)[Number(prefs.day)];
-      if (!onDay(e, d) || d < sydneyToday()) return false;
+      if (!(onDay(e, d) || openOn(e, d)) || d < sydneyToday()) return false;
     }
     if (query) {
       var hay = [e.title, e.blurb, e.area, e.address, e.region, CATS[e.cat], e.when, e.transit].join(" ").toLowerCase();
@@ -336,7 +342,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
   function renderControls() {
     var w0 = weekend(0), w1 = weekend(1);
     var span = function (w) { return Number(w[0].slice(8)) + "–" + Number(w[2].slice(8)) + " " + MON[Number(w[2].slice(5, 7)) - 1]; };
-    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["openings", "New openings", "shops, bars, cafes"], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "wants & been"], ["plan", "Plan a day", "routes & timings"]];
+    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["openings", "Shops & openings", "new this week + finds"], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "wants & been"], ["plan", "Plan a day", "routes & timings"]];
     $("tabs").innerHTML = tabs.map(function (t) {
       var n = t[0] === "plan" ? -1 : events.filter(function (e) { return inTab(e, t[0]); }).length;
       return '<button class="tab" role="tab" type="button" data-tab="' + t[0] + '" aria-selected="' + (prefs.tab === t[0]) + '"><strong>' + t[1] + (loaded && n >= 0 ? " · " + n : "") + "</strong><small>" + t[2] + "</small></button>";
@@ -389,12 +395,13 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
 
   function card(e) {
     var p = pk(e.id), ds = daysFor(prefs.tab === "next" ? "next" : "this"), url = safeUrl(e.url), today = sydneyToday();
-    var pips = e.kind === "place" ? "" : '<div class="pips" aria-label="Days on">' + ds.map(function (d) { return '<span class="pip' + (onDay(e, d) ? " on" : "") + '">' + DOW[wd(d)] + "</span>"; }).join("") + "</div>";
+    var pips = isShopFind(e) ? '<div class="pips" aria-label="Open">' + ds.map(function (d) { return '<span class="pip' + (openOn(e, d) ? " on" : "") + '">' + DOW[wd(d)] + "</span>"; }).join("") + "</div>" : e.kind === "place" ? "" : '<div class="pips" aria-label="Days on">' + ds.map(function (d) { return '<span class="pip' + (onDay(e, d) ? " on" : "") + '">' + DOW[wd(d)] + "</span>"; }).join("") + "</div>";
     var cost = e.cost === 0 ? '<span class="cost free">Free</span>' : '<span class="cost">' + esc(e.costText || (e.cost != null ? "$" + e.cost : "See site")) + "</span>";
     if (e.cost === 0 && e.costText && e.costText.toLowerCase() !== "free") cost += " · " + esc(e.costText);
     var tags = [];
     if (e.kind === "event" && e.end && e.end < today) tags.push('<span class="tag check">Finished</span>');
-    if (e.openedOn) tags.push('<span class="tag open">' + (e.openedOn > today ? "Opens " : "Opened ") + esc(nice(e.openedOn)) + "</span>");
+    if (e.openedOn) tags.push('<span class="tag open">' + (newThisWeek(e) ? "New this week · " : "") + (e.openedOn > today ? "Opens " : "Opened ") + esc(nice(e.openedOn)) + "</span>");
+    else if (isShopFind(e) && !pk(e.id).state) tags.push('<span class="tag fresh">New to you</span>');
     if (e.kind !== "place" && e.end && e.end <= ds[2] && e.end >= ds[0] && e.start && e.start < ds[0]) tags.push('<span class="tag last">Last weekend</span>');
     if (e.kind === "weekly") tags.push('<span class="tag">Every week</span>');
     if (e.setting === "outdoor") {
@@ -418,7 +425,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
         '<button class="act" type="button" data-act="done" aria-pressed="true">Been</button>';
     } else {
       acts = '<button class="act" type="button" data-act="want" aria-pressed="' + iWant(e.id) + '">' + (iWant(e.id) ? "I want this" : "I'd go") + "</button>" +
-        '<button class="act" type="button" data-act="done" aria-pressed="false">Been there</button>' +
+        '<button class="act" type="button" data-act="done" aria-pressed="false">' + (isShopFind(e) ? "Know it" : "Been there") + "</button>" +
         '<button class="act" type="button" data-act="hidden" aria-pressed="' + (p.state === "hidden") + '">' + (p.state === "hidden" ? "Skipped" : "Skip") + "</button>";
     }
     return '<article class="card' + (p.state === "done" ? " been" : "") + '" data-id="' + esc(e.id) + '">' +
@@ -650,10 +657,23 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     shown = events.filter(function (e) { return inTab(e, prefs.tab) && passes(e); }).sort(sorters[prefs.sort] || bySpark);
     var inTabCount = events.filter(function (e) { return inTab(e, prefs.tab); }).length;
     $("count").textContent = shown.length + (shown.length === 1 ? " find" : " finds") + (shown.length < inTabCount ? " of " + inTabCount + " (filters on)" : "") + (prefs.sort === "near" && !home ? " · set your home suburb to sort by distance" : "");
+    if (shown.length && prefs.tab === "openings") {
+      var t0 = sydneyToday(), groups = [
+        ["New this week", function (e) { return newThisWeek(e); }],
+        ["Opening soon", function (e) { return e.openedOn && e.openedOn > addDays(t0, 7); }],
+        ["Opened recently", function (e) { return isOpening(e) && !newThisWeek(e) && !(e.openedOn && e.openedOn > t0); }],
+        ["Shops to discover", function () { return true; }]
+      ], left = shown.slice(), html = "";
+      groups.forEach(function (g) {
+        var inG = left.filter(g[1]); left = left.filter(function (e) { return inG.indexOf(e) === -1; });
+        if (inG.length) html += '<h2 class="group">' + g[0] + " <span>" + inG.length + "</span></h2>" + inG.map(card).join("");
+      });
+      $("board").innerHTML = html; return;
+    }
     if (shown.length) { $("board").innerHTML = shown.map(card).join(""); return; }
     var msg = !events.length ? ["The notebook is empty", "The scout fills it each morning. Check back shortly."]
       : prefs.tab === "ours" ? ["Nothing on your list yet", "Tap \"I'd go\" on anything that catches your eye. When you both pick the same thing, it says so here."]
-      : prefs.tab === "openings" ? ["No new openings logged yet", "The scout adds new shops, bars and cafes each morning."]
+      : prefs.tab === "openings" ? ["No shops or openings match", "The scout adds new openings and unusual shops on each run."]
       : inTabCount ? ["No finds match those filters", "Loosen a filter or clear the search."]
       : ["Nothing scouted for these dates yet", "Listings usually firm up from Wednesday. Anytime spots are always open."];
     $("board").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>' + msg[0] + "</strong>" + msg[1] + "</div>";

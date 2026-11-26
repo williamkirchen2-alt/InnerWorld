@@ -77,6 +77,30 @@ a { color: var(--green); }
 
 /* Plan panel */
 .plan[hidden] { display: none; }
+.deck.planning .row { display: none; }
+.planctl { gap: 12px; }
+.planctl label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.planctl label.chk { flex-direction: row; align-items: center; gap: 6px; font-size: 14px; color: var(--ink); font-weight: 500; }
+.plan .note { font-size: 13px; }
+details.picks { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+details.picks summary { cursor: pointer; font-weight: 600; }
+.picklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 6px 14px; margin-top: 10px; }
+.pick { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; min-width: 0; }
+.pick input { margin-top: 4px; accent-color: var(--green); }
+.pick small { color: var(--muted); }
+.routes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+.route { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); min-width: 0; }
+.route.following { border-color: var(--green); box-shadow: 0 0 0 2px var(--green); background: var(--surface); }
+.route h3 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
+.route .why { font-size: 13px; }
+.route .sum { color: var(--ink); font-weight: 600; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.tl { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.tl li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; font-size: 14px; min-width: 0; }
+.tl li > span { min-width: 0; overflow-wrap: anywhere; }
+.tl .tm { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--green); }
+.tl .leg { color: var(--muted); font-size: 12.5px; }
+.tl small { color: var(--muted); }
+.act.primary { background: var(--buff); border-color: var(--buff); color: var(--buff-ink); font-weight: 600; }
 .plan { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .plan h2 { font-family: var(--display); font-size: 1.15rem; margin: 0; }
 .plan ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
@@ -312,10 +336,10 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
   function renderControls() {
     var w0 = weekend(0), w1 = weekend(1);
     var span = function (w) { return Number(w[0].slice(8)) + "–" + Number(w[2].slice(8)) + " " + MON[Number(w[2].slice(5, 7)) - 1]; };
-    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["openings", "New openings", "shops, bars, cafes"], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "wants & been"]];
+    var tabs = [["this", "This weekend", span(w0)], ["next", "Next weekend", span(w1)], ["openings", "New openings", "shops, bars, cafes"], ["spots", "Anytime spots", "no date needed"], ["ours", "Our list", "wants & been"], ["plan", "Plan a day", "routes & timings"]];
     $("tabs").innerHTML = tabs.map(function (t) {
-      var n = events.filter(function (e) { return inTab(e, t[0]); }).length;
-      return '<button class="tab" role="tab" type="button" data-tab="' + t[0] + '" aria-selected="' + (prefs.tab === t[0]) + '"><strong>' + t[1] + (loaded ? " · " + n : "") + "</strong><small>" + t[2] + "</small></button>";
+      var n = t[0] === "plan" ? -1 : events.filter(function (e) { return inTab(e, t[0]); }).length;
+      return '<button class="tab" role="tab" type="button" data-tab="' + t[0] + '" aria-selected="' + (prefs.tab === t[0]) + '"><strong>' + t[1] + (loaded && n >= 0 ? " · " + n : "") + "</strong><small>" + t[2] + "</small></button>";
     }).join("");
     var dated = prefs.tab === "this" || prefs.tab === "next" || prefs.tab === "ours";
     var ds = daysFor(prefs.tab), today = sydneyToday();
@@ -414,43 +438,215 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
       '<div class="acts">' + acts + "</div></article>";
   }
 
-  // Day planner for "Our list": orders the finds you want into a route from home.
-  var planText = "";
-  function renderPlan() {
-    var el = $("plan");
-    if (prefs.tab !== "ours" || !loaded) { el.hidden = true; return; }
-    el.hidden = false;
-    var ds = daysFor("this"), today = sydneyToday();
-    var d = prefs.day !== "all" ? ds[Number(prefs.day)] : ds.filter(function (x) { return x >= today && wd(x) !== 5; })[0] || ds[2];
-    var pool = events.filter(function (e) { return wanted(e.id) && pk(e.id).state !== "done" && (e.kind === "place" || onDay(e, d)); });
-    if (!pool.length) {
-      el.innerHTML = "<h2>Plan " + esc(nice(d)) + "</h2><p>Tap \"I'd go\" on a few finds and this turns them into a route for the day. Pick a day above to plan a different one.</p>";
-      planText = ""; return;
+  // ---- Route planner: fits the picks you choose for a day around their hours and travel time, then offers routes to pick from.
+  var DUR = { markets: 75, outdoors: 90, art: 90, music: 120, stage: 150, food: 90, shops: 40, openings: 60, learn: 120, sport: 180, pop: 75 };
+  var MODES = { transit: { label: "Public transport", kmh: 18, extra: 10 }, driving: { label: "Driving", kmh: 28, extra: 8 }, walking: { label: "Walking", kmh: 4.5, extra: 0 } };
+  var plans = {}, lastRoutes = [], planCopy = "";
+  function hm(m) { m = Math.round(m); var h = Math.floor(m / 60) % 24, mm = m % 60, h12 = h % 12 || 12; return h12 + (mm ? ":" + (mm < 10 ? "0" : "") + mm : "") + (h >= 12 ? "pm" : "am"); }
+  function travelMin(a, b, mode) {
+    if (!a || !b) return 20;
+    var k = km(a, b) * 1.3, M = MODES[mode] || MODES.transit;
+    if (k < 0.15) return 0;
+    if (mode !== "driving" && k < 1.2) return Math.max(3, Math.round(k / 4.5 * 60));
+    return Math.round(k / M.kmh * 60 + M.extra);
+  }
+  function parseTimes(t) {
+    var out = [], re = /(\d{1,2})(?:[.:](\d{2}))?\s*(am|pm)\b/gi, m;
+    while ((m = re.exec(t))) out.push((Number(m[1]) % 12 + (m[3].toLowerCase() === "pm" ? 12 : 0)) * 60 + (Number(m[2]) || 0));
+    return out;
+  }
+  function hhmm(s) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(s || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+  // Opening window for a find on a day: {open, close, fixed, stay, guessed}
+  function windowFor(e, d) {
+    var stay = num(e.stay) || DUR[e.cat] || 75;
+    var o = hhmm(e.opens), c = hhmm(e.closes);
+    if (o !== null && c !== null) return { open: o, close: c > o ? c : c + 1440, fixed: null, stay: Math.min(stay, Math.max(30, (c > o ? c : c + 1440) - o)), guessed: false };
+    var txt = String(e.when || ""), dn = DOW[wd(d)];
+    var segs = txt.split(/;|\.\s/), seg = segs.filter(function (s) { return s.indexOf(dn) !== -1; })[0] || segs[0] || "";
+    var ts = parseTimes(seg);
+    if (!ts.length) ts = parseTimes(txt);
+    if (ts.length >= 2) { var cl = ts[1] <= ts[0] ? ts[1] + 720 : ts[1]; return { open: ts[0], close: cl, fixed: null, stay: Math.min(stay, Math.max(30, cl - ts[0])), guessed: false }; }
+    if (ts.length === 1) {
+      if (/until|till|to\s/i.test(seg) && !/from/i.test(seg)) return { open: 9 * 60, close: ts[0], fixed: null, stay: stay, guessed: true };
+      if (/from/i.test(seg) || ["markets", "outdoors", "food", "shops", "openings", "art"].indexOf(e.cat) !== -1) return { open: ts[0], close: Math.min(ts[0] + stay + 180, 23.5 * 60), fixed: null, stay: stay, guessed: true };
+      return { open: ts[0], close: ts[0] + stay, fixed: ts[0], stay: stay, guessed: false };
     }
-    var start = homePt(), left = pool.slice(), route = [], cur = start;
-    if (!cur) { left.sort(function (a, b) { return Number(!!b.evening === false) - Number(!!a.evening === false); }); route = left; }
-    else {
-      while (left.length) {
-        var bi = 0, bd = Infinity;
-        left.forEach(function (e, i) { var w = where(e), k = w ? km(cur, w) : 1e6; if (e.evening) k += 500; if (k < bd) { bd = k; bi = i; } });
-        var nx = left.splice(bi, 1)[0]; route.push(nx); cur = where(nx) || cur;
+    if (/evening|night/i.test(txt) || (e.evening && e.kind !== "place")) return { open: 18 * 60, close: 23 * 60, fixed: null, stay: stay, guessed: true };
+    if (/any (time|day)|daylight|always/i.test(txt) || e.cat === "outdoors") return { open: 7 * 60, close: 19.5 * 60, fixed: null, stay: stay, guessed: true };
+    if (e.evening && (e.cat === "food" || e.cat === "openings")) return { open: 17.5 * 60, close: 22.5 * 60, fixed: null, stay: stay, guessed: true };
+    if (e.cat === "shops" || e.cat === "openings") return { open: 10 * 60, close: 17.5 * 60, fixed: null, stay: stay, guessed: true };
+    return { open: 10 * 60, close: 17 * 60, fixed: null, stay: stay, guessed: true };
+  }
+  function planDays() {
+    var today = sydneyToday();
+    return weekend(0).concat(weekend(1)).filter(function (d) { return d >= today; });
+  }
+  function dayCands(d) {
+    return events.filter(function (e) {
+      var p = pk(e.id);
+      if (p.state === "hidden" || p.state === "done") return false;
+      if (e.kind === "place") return !e.openedOn || e.openedOn <= d;
+      return onDay(e, d);
+    }).sort(function (a, b) { return Object.keys(pk(b.id).wants).length - Object.keys(pk(a.id).wants).length || bySpark(a, b); });
+  }
+  function planSettings() {
+    var pl = prefs.plan || {}, days = planDays();
+    var d = days.indexOf(pl.day) !== -1 ? pl.day : (days.filter(function (x) { return wd(x) === 6; })[0] || days[0]);
+    return { day: d, start: num(pl.start) || 600, end: num(pl.end) || 1080, mode: MODES[pl.mode] ? pl.mode : "transit", back: pl.back !== false, picked: (pl.picked && pl.picked[d]) || null };
+  }
+  function pickedIds(S, cands) {
+    if (S.picked) return S.picked.filter(function (id) { return cands.some(function (e) { return e.id === id; }); });
+    return cands.filter(function (e) { return wanted(e.id); }).slice(0, 9).map(function (e) { return e.id; });
+  }
+  function solve(list, S) {
+    var from = homePt(), out = [], n = list.length, used = [], path = [], steps = 0;
+    function rec(t, pos) {
+      if (++steps > 250000) return;
+      if (path.length) {
+        var back = from && S.back && pos ? travelMin(pos, from, S.mode) : 0;
+        if (t + back <= S.end) out.push({ stops: path.slice(), back: back, finish: t + back });
+      }
+      if (path.length >= 6) return;
+      for (var i = 0; i < n; i++) {
+        if (used[i]) continue;
+        var c = list[i], tr = pos ? travelMin(pos, c.pt, S.mode) : 0, arr = t + tr, st, lv;
+        if (c.w.fixed !== null) { if (arr > c.w.fixed + 10) continue; st = Math.max(arr, c.w.fixed); lv = st + c.w.stay; }
+        else { st = Math.max(arr, c.w.open); if (st + Math.min(c.w.stay, 30) > c.w.close) continue; lv = Math.min(st + c.w.stay, c.w.close); }
+        if (lv > S.end) continue;
+        used[i] = true; path.push({ c: c, travel: tr, arrive: arr, start: st, leave: lv });
+        rec(lv, c.pt || pos);
+        path.pop(); used[i] = false;
       }
     }
-    var pts = route.map(function (e) { var w = where(e); return w ? w[0].toFixed(5) + "," + w[1].toFixed(5) : (e.address || e.title) + ", Sydney"; });
-    var dir = "https://www.google.com/maps/dir/?api=1" + (start ? "&origin=" + start.join(",") : "") + "&destination=" + encodeURIComponent(pts[pts.length - 1]) + (pts.length > 1 ? "&waypoints=" + encodeURIComponent(pts.slice(0, -1).join("|")) : "");
-    var w = wx(d);
-    planText = "Our plan for " + nice(d) + ":\n" + route.map(function (e, i) { return (i + 1) + ". " + e.title + " – " + (e.when || "any time") + " – " + (e.address || e.area || ""); }).join("\n") + "\nRoute: " + dir;
-    el.innerHTML = "<h2>Plan " + esc(nice(d)) + (w && num(w.max) !== null ? " · " + Math.round(w.max) + "°" + (num(w.rain) !== null ? ", " + Math.round(w.rain) + "% rain" : "") : "") + "</h2>" +
-      "<ol>" + route.map(function (e) { var k = distOf(e); return "<li><b>" + esc(e.title) + "</b> <span>" + esc(e.when || "") + (e.area ? " · " + esc(e.area) : "") + (k != null ? " · " + fmtKm(k) + " from home" : "") + "</span></li>"; }).join("") + "</ol>" +
-      (start ? "" : "<p>Set your home suburb to get these in a sensible order.</p>") +
-      '<div class="row"><a class="act" href="' + esc(dir) + '" target="_blank" rel="noopener">Open route in Google Maps</a><button class="act" type="button" id="copyplan">Copy plan to send</button></div>';
+    rec(S.start, from);
+    return out;
   }
+  function measure(r) {
+    r.k = r.stops.length;
+    var f0 = r.stops[0];
+    if (f0 && r.depart == null) r.depart = f0.arrive - f0.travel;
+    if (f0 && f0.start > f0.arrive) { r.depart += f0.start - f0.arrive; f0.arrive = f0.start; }
+    r.travel = r.back + r.stops.reduce(function (s, x) { return s + x.travel; }, 0);
+    r.wait = r.stops.reduce(function (s, x) { return s + Math.max(0, x.start - x.arrive); }, 0);
+    r.value = r.stops.reduce(function (s, x) { return s + (x.c.e.spark || 2) + 2 * Object.keys(pk(x.c.e.id).wants).length; }, 0);
+    r.dry = r.stops.every(function (x) { return x.c.e.setting !== "outdoor"; });
+    r.key = r.stops.map(function (x) { return x.c.e.id; }).join(">");
+    return r;
+  }
+  function pickRoutes(all, wet) {
+    if (!all.length) return [];
+    all.forEach(measure);
+    var maxK = Math.max.apply(null, all.map(function (r) { return r.k; }));
+    var by = function (f) { return all.slice().sort(f)[0]; };
+    var opts = [];
+    var add = function (label, why, r) {
+      if (!r) return;
+      var same = opts.filter(function (o) { return o.r.key === r.key; })[0];
+      if (same) { same.labels.push(label); return; }
+      opts.push({ labels: [label], why: why, r: r });
+    };
+    add("Fit the most in", "Visits as many of your picks as the day allows.", by(function (a, b) { return b.k - a.k || (b.value * 30 - b.wait - b.travel) - (a.value * 30 - a.wait - a.travel); }));
+    var minK = Math.min(2, maxK);
+    add("Least travel", "The least time getting between places.", by(function (a, b) { return (b.k >= minK) - (a.k >= minK) || a.travel - b.travel || b.value - a.value; }));
+    var ease = function (r) { return r.value * 30 - r.travel - r.wait; };
+    add("Best bits, easy pace", "Your top-rated picks, no more than three stops and little hanging around.", by(function (a, b) { return (a.k <= 3) === (b.k <= 3) ? ease(b) - ease(a) : (a.k <= 3 ? -1 : 1); }));
+    add("Least waiting around", "Avoids gaps waiting for places to open.", by(function (a, b) { return (b.k >= minK) - (a.k >= minK) || a.wait - b.wait || b.k - a.k || a.travel - b.travel; }));
+    if (wet) {
+      var dry = all.filter(function (r) { return r.dry; });
+      if (dry.length) add("Rain-proof", "Indoor stops only, for a wet day.", dry.sort(function (a, b) { return b.k - a.k || b.value - a.value || a.travel - b.travel; })[0]);
+    }
+    return opts;
+  }
+  function legUrl(a, b, mode) {
+    var p = function (x) { return x.pt ? x.pt[0].toFixed(5) + "," + x.pt[1].toFixed(5) : [x.name, x.addr, "Sydney NSW"].filter(Boolean).join(", "); };
+    return "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(p(a)) + "&destination=" + encodeURIComponent(p(b)) + "&travelmode=" + (mode === "driving" ? "driving" : mode === "walking" ? "walking" : "transit");
+  }
+  function routeHtml(r, S, idx, following) {
+    var from = homePt(), modeWord = S.mode === "driving" ? "drive" : S.mode === "walking" ? "walk" : "by transit";
+    var prev = from ? { pt: from, name: home } : null, rows = [];
+    if (from) rows.push('<li><span class="tm">' + hm(r.depart != null ? r.depart : S.start) + "</span><span>Leave " + esc(home) + "</span></li>");
+    r.stops.forEach(function (x) {
+      var e = x.c.e, here = { pt: x.c.pt, name: e.title, addr: e.address || e.area };
+      if (prev && x.travel) rows.push('<li class="leg"><span class="tm"></span><span>≈' + x.travel + " min " + modeWord + ' · <a href="' + esc(legUrl(prev, here, S.mode)) + '" target="_blank" rel="noopener">Directions</a></span></li>');
+      var gap = Math.round(x.start - x.arrive);
+      var wait = gap > 40 ? " (arrive " + hm(x.arrive) + ", " + (gap >= 60 ? Math.floor(gap / 60) + " h " + (gap % 60 ? (gap % 60) + " min " : "") : gap + " min ") + "free to wander first)" : gap > 5 ? " (arrive " + hm(x.arrive) + ", " + gap + " min early)" : "";
+      rows.push('<li><span class="tm">' + hm(x.start) + "</span><span><b>" + esc(e.title) + "</b> until " + hm(x.leave) + esc(wait) + "<br><small>" + esc(e.address || e.area || "") + (x.c.w.guessed ? " · hours estimated" : "") + "</small></span></li>");
+      prev = here;
+    });
+    if (from && S.back && r.back) {
+      rows.push('<li class="leg"><span class="tm"></span><span>≈' + r.back + " min " + modeWord + ' · <a href="' + esc(legUrl(prev, { pt: from, name: home }, S.mode)) + '" target="_blank" rel="noopener">Directions</a></span></li>');
+      rows.push('<li><span class="tm">' + hm(r.finish) + "</span><span>Home</span></li>");
+    }
+    var sum = r.k + (r.k === 1 ? " stop" : " stops") + " · ≈" + r.travel + " min travelling" + (r.wait > 10 ? " · " + Math.round(r.wait) + " min free between stops" : "") + " · done by " + hm(r.finish);
+    return '<article class="route' + (following ? " following" : "") + '">' +
+      "<h3>" + esc(r.labels ? r.labels.join(" · ") : "Your route") + "</h3>" + (r.why ? '<p class="why">' + esc(r.why) + "</p>" : "") +
+      '<p class="sum">' + esc(sum) + "</p><ol class=\"tl\">" + rows.join("") + "</ol>" +
+      '<div class="row">' + (following ? '<span class="who">You\'re following this route</span><button class="act" type="button" data-unfollow="1">Stop following</button><button class="act" type="button" data-copy="1">Copy to send</button>'
+        : '<button class="act primary" type="button" data-follow="' + idx + '">Follow this route</button>') + "</div></article>";
+  }
+  function routeText(r, S) {
+    return "Our plan for " + nice(S.day) + " (" + MODES[S.mode].label.toLowerCase() + "):\n" + r.stops.map(function (x) { return hm(x.start) + "–" + hm(x.leave) + "  " + x.c.e.title + " – " + (x.c.e.address || x.c.e.area || ""); }).join("\n") + "\nDone by " + hm(r.finish);
+  }
+  function rebuildFollowed(p) {
+    // Turn a saved plan back into a route with live details for display.
+    var stops = (p.stops || []).map(function (s) { var e = events.filter(function (x) { return x.id === s.id; })[0] || { id: s.id, title: s.title || "A find that has been removed" }; return { c: { e: e, pt: where(e), w: windowFor(e, p.day) }, travel: s.travel || 0, arrive: s.arrive, start: s.start, leave: s.leave }; });
+    return measure({ stops: stops, depart: num(p.depart), back: p.back || 0, finish: p.finish || (stops.length ? stops[stops.length - 1].leave : 0), labels: p.labels });
+  }
+  function timeOpts(sel, from, to) { var h = ""; for (var m = from; m <= to; m += 30) h += '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + hm(m) + "</option>"; return h; }
+  function renderPlanner() {
+    var el = $("plan");
+    var on = prefs.tab === "plan";
+    document.querySelector(".deck").classList.toggle("planning", on);
+    $("board").hidden = on; $("count").hidden = on;
+    if (prefs.tab === "ours" && loaded) {
+      var fs = Object.keys(plans).filter(function (d) { return d >= sydneyToday(); }).sort();
+      if (!fs.length) { el.hidden = true; return; }
+      el.hidden = false;
+      el.innerHTML = "<h2>Routes you're following</h2>" + fs.map(function (d) { var p = plans[d], r = rebuildFollowed(p); return "<p><b>" + esc(nice(d)) + ":</b> " + esc(r.stops.map(function (x) { return hm(x.start) + " " + x.c.e.title; }).join(" → ")) + "</p>"; }).join("") +
+        '<div class="row"><button class="act" type="button" data-gotab="plan">Open the planner</button></div>';
+      return;
+    }
+    if (!on || !loaded) { el.hidden = true; return; }
+    el.hidden = false;
+    var S = planSettings(), days = planDays();
+    if (!days.length) { el.innerHTML = "<h2>Plan a day</h2><p>No weekend days left to plan.</p>"; return; }
+    var cands = dayCands(S.day), ids = pickedIds(S, cands);
+    var w = wx(S.day), wet = !!(w && num(w.rain) !== null && w.rain >= 60);
+    var head = '<h2>Plan a day</h2><div class="row planctl">' +
+      '<label>Day <select class="field" id="pl-day">' + days.map(function (d) { var x = wx(d); return '<option value="' + d + '"' + (d === S.day ? " selected" : "") + ">" + nice(d) + (x && num(x.rain) !== null ? " · " + Math.round(x.rain) + "% rain" : "") + "</option>"; }).join("") + "</select></label>" +
+      '<label>Start <select class="field" id="pl-start">' + timeOpts(S.start, 360, 1080) + "</select></label>" +
+      '<label>Done by <select class="field" id="pl-end">' + timeOpts(S.end, 720, 1440) + "</select></label>" +
+      '<label>Getting around <select class="field" id="pl-mode">' + Object.keys(MODES).map(function (k) { return '<option value="' + k + '"' + (k === S.mode ? " selected" : "") + ">" + MODES[k].label + "</option>"; }).join("") + "</select></label>" +
+      '<label class="chk"><input type="checkbox" id="pl-back"' + (S.back ? " checked" : "") + "> End back home</label></div>" +
+      (home ? "" : '<p class="note">Set your home suburb in the filters (on another tab) so routes start and end at home. Until then, routes start at the first stop.</p>');
+    var followed = plans[S.day];
+    var followHtml = followed ? routeHtml(rebuildFollowed(followed), { day: S.day, start: followed.startAt || S.start, mode: followed.mode || S.mode, back: followed.backHome !== false }, -1, true) : "";
+    var pickList = '<details class="picks"' + (ids.length ? "" : " open") + "><summary>Choose what to fit in (" + ids.length + " of " + cands.length + " picked, up to 9)</summary><div class=\"picklist\">" +
+      cands.map(function (e) {
+        var wn = windowFor(e, S.day), k = distOf(e), wc = Object.keys(pk(e.id).wants).length;
+        return '<label class="pick"><input type="checkbox" data-pick="' + esc(e.id) + '"' + (ids.indexOf(e.id) !== -1 ? " checked" : "") + "><span><b>" + esc(e.title) + "</b>" + (wc > 1 ? " · both want" : wc ? " · wanted" : "") + "<br><small>" +
+          (wn.fixed !== null ? "starts " + hm(wn.fixed) : hm(wn.open) + "–" + hm(wn.close)) + (wn.guessed ? " (estimated)" : "") + " · about " + wn.stay + " min" + (k != null ? " · " + fmtKm(k) : "") + "</small></span></label>";
+      }).join("") + "</div></details>";
+    var body;
+    if (!ids.length) { body = "<p class=\"note\">Tick a few finds above, or tap \"I'd go\" on cards, and routes for the day appear here.</p>"; lastRoutes = []; }
+    else {
+      var list = ids.map(function (id) { var e = events.filter(function (x) { return x.id === id; })[0]; return { e: e, pt: where(e), w: windowFor(e, S.day) }; });
+      var routes = pickRoutes(solve(list, S), wet);
+      lastRoutes = routes.map(function (o) { o.r.labels = o.labels; o.r.why = o.why; return o.r; });
+      body = lastRoutes.length ? '<div class="routes">' + lastRoutes.map(function (r, i) { return routeHtml(r, S, i, false); }).join("") + "</div>"
+        : '<p class="note">None of those fit between ' + hm(S.start) + " and " + hm(S.end) + ". Try an earlier start, a later finish, or different picks.</p>";
+      var missing = ids.filter(function (id) { return !lastRoutes.some(function (r) { return r.stops.some(function (x) { return x.c.e.id === id; }); }); });
+      if (missing.length && lastRoutes.length) body += '<p class="note">Didn\'t fit in any route: ' + esc(missing.map(function (id) { return (events.filter(function (x) { return x.id === id; })[0] || {}).title; }).join(", ")) + ".</p>";
+    }
+    el.innerHTML = head + followHtml + pickList + body + '<p class="note">Travel times are rough estimates from distance. Tap Directions for live times. Hours marked "estimated" are guessed from the listing, so check before you go.</p>';
+  }
+  function savePlanPrefs(f) { prefs.plan = prefs.plan || {}; f(prefs.plan); keep(); render(); }
 
   var shown = [];
   function render() {
     renderControls();
-    renderPlan();
-    if (!loaded) return;
+    renderPlanner();
+    if (!loaded || prefs.tab === "plan") return;
     shown = events.filter(function (e) { return inTab(e, prefs.tab) && passes(e); }).sort(sorters[prefs.sort] || bySpark);
     var inTabCount = events.filter(function (e) { return inTab(e, prefs.tab); }).length;
     $("count").textContent = shown.length + (shown.length === 1 ? " find" : " finds") + (shown.length < inTabCount ? " of " + inTabCount + " (filters on)" : "") + (prefs.sort === "near" && !home ? " · set your home suburb to sort by distance" : "");
@@ -530,13 +726,39 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
   });
   $("q").addEventListener("input", function () { query = this.value.trim().toLowerCase(); render(); });
   $("plan").addEventListener("click", function (ev) {
-    if (!ev.target.closest("#copyplan") || !planText) return;
-    var done = function () { toast("Plan copied. Paste it into a message."); };
-    var fallback = function () {
-      var t = document.createElement("textarea"); t.value = planText; t.className = "field"; t.style.width = "100%"; t.rows = 6;
-      $("plan").appendChild(t); t.focus(); t.select(); toast("Select all and copy the plan below.");
-    };
-    try { navigator.clipboard.writeText(planText).then(done, fallback); } catch (e) { fallback(); }
+    var g = ev.target.closest("[data-gotab]");
+    if (g) { prefs.tab = g.dataset.gotab; keep(); render(); window.scrollTo(0, 0); return; }
+    var S = planSettings();
+    var f = ev.target.closest("[data-follow]");
+    if (f) {
+      var r = lastRoutes[Number(f.dataset.follow)]; if (!r) return;
+      if (!db || readOnly) { toast("This view is read-only, so the route can't be saved here."); return; }
+      var doc = { day: S.day, mode: S.mode, startAt: r.depart != null ? r.depart : S.start, depart: r.depart != null ? r.depart : S.start, backHome: S.back, back: r.back, finish: r.finish, labels: r.labels || [], by: me, at: new Date().toISOString(),
+        stops: r.stops.map(function (x) { return { id: x.c.e.id, title: x.c.e.title, travel: x.travel, arrive: x.arrive, start: x.start, leave: x.leave }; }) };
+      db.doc("plans/" + S.day).set(doc).then(function () { toast("Following this route for " + nice(S.day) + "."); window.scrollTo(0, $("plan").offsetTop - 10); }, function () { toast("Couldn't save the route. Try again in a moment."); });
+      return;
+    }
+    if (ev.target.closest("[data-unfollow]")) { if (db && !readOnly) db.doc("plans/" + S.day).delete().catch(function () {}); return; }
+    if (ev.target.closest("[data-copy]")) {
+      var p = plans[S.day]; if (!p) return;
+      var txt = routeText(rebuildFollowed(p), { day: S.day, mode: p.mode || S.mode });
+      var fallback = function () { var t = document.createElement("textarea"); t.value = txt; t.className = "field"; t.style.width = "100%"; t.rows = 6; $("plan").appendChild(t); t.focus(); t.select(); toast("Select all and copy the plan below."); };
+      try { navigator.clipboard.writeText(txt).then(function () { toast("Route copied. Paste it into a message."); }, fallback); } catch (e) { fallback(); }
+    }
+  });
+  $("plan").addEventListener("change", function (ev) {
+    var t = ev.target, S = planSettings();
+    if (t.id === "pl-day") savePlanPrefs(function (p) { p.day = t.value; });
+    else if (t.id === "pl-start") savePlanPrefs(function (p) { p.start = Number(t.value); if ((p.end || 1080) <= p.start) p.end = p.start + 240; });
+    else if (t.id === "pl-end") savePlanPrefs(function (p) { p.end = Number(t.value); });
+    else if (t.id === "pl-mode") savePlanPrefs(function (p) { p.mode = t.value; });
+    else if (t.id === "pl-back") savePlanPrefs(function (p) { p.back = t.checked; });
+    else if (t.dataset.pick) {
+      var ids = pickedIds(S, dayCands(S.day)), id = t.dataset.pick, i = ids.indexOf(id);
+      if (t.checked && i === -1) { if (ids.length >= 9) { t.checked = false; toast("Up to 9 picks at a time. Untick one first."); return; } ids.push(id); }
+      if (!t.checked && i !== -1) ids.splice(i, 1);
+      savePlanPrefs(function (p) { p.picked = p.picked || {}; p.picked[S.day] = ids; });
+    }
   });
   $("surprise").addEventListener("click", function () {
     var pool = shown.filter(function (e) { return pk(e.id).state !== "hidden" && pk(e.id).state !== "done"; });
@@ -610,6 +832,10 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     db.collection("picks").limit(1000).onSnapshot(function (snap) {
       picks = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x) picks[s.id] = x; });
       render(); resolveNames();
+    }, function () {});
+    db.collection("plans").limit(60).onSnapshot(function (snap) {
+      plans = {}; snap.docs.forEach(function (s) { var x = s.data(); if (x && Array.isArray(x.stops)) plans[s.id] = Object.assign({ day: s.id }, x); });
+      render();
     }, function () {});
     db.collection("meta").onSnapshot(function (snap) {
       snap.docs.forEach(function (s) {

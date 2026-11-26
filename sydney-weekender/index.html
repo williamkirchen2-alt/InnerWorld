@@ -258,7 +258,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
 
   var events = [], picks = {}, status = null, weather = null, loaded = false, query = "", db = null, readOnly = false;
   var me = "anon", users = null, names = {}, home = prefs.home || "";
-  var TRIGGER = "trig_01941463NJ24ymRjgtvrB9cE", SERVER = "Claude Code Remote", STALE_MS = 20 * 36e5;
+  var TRIGGER = "trig_01941463NJ24ymRjgtvrB9cE", SERVER = "Claude Code Remote", STALE_MS = 84 * 36e5;
   var mcp = null, check = null, metaFresh = false, autoTried = false, starting = false;
 
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3800); }

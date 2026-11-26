@@ -76,6 +76,7 @@ a { color: var(--green); }
 #q { flex: 1 1 160px; }
 
 /* Plan panel */
+.plan[hidden] { display: none; }
 .plan { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .plan h2 { font-family: var(--display); font-size: 1.15rem; margin: 0; }
 .plan ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
@@ -368,6 +369,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     var cost = e.cost === 0 ? '<span class="cost free">Free</span>' : '<span class="cost">' + esc(e.costText || (e.cost != null ? "$" + e.cost : "See site")) + "</span>";
     if (e.cost === 0 && e.costText && e.costText.toLowerCase() !== "free") cost += " · " + esc(e.costText);
     var tags = [];
+    if (e.kind === "event" && e.end && e.end < today) tags.push('<span class="tag check">Finished</span>');
     if (e.openedOn) tags.push('<span class="tag open">' + (e.openedOn > today ? "Opens " : "Opened ") + esc(nice(e.openedOn)) + "</span>");
     if (e.kind !== "place" && e.end && e.end <= ds[2] && e.end >= ds[0] && e.start && e.start < ds[0]) tags.push('<span class="tag last">Last weekend</span>');
     if (e.kind === "weekly") tags.push('<span class="tag">Every week</span>');
@@ -383,7 +385,7 @@ details.scout textarea { width: 100%; min-height: 84px; resize: vertical; }
     var run = "";
     if (e.kind === "event" && e.start && e.end && e.start !== e.end) run = " (runs " + nice(e.start).slice(4) + " – " + nice(e.end).slice(4) + ")";
     var d = distOf(e), dist = d != null ? '<span class="dist">' + fmtKm(d) + "</span> from " + esc(home) : "";
-    var whereTxt = esc(e.address || e.area || "") + (e.address && e.area && e.address.indexOf(e.area) === -1 ? " · " + esc(e.area) : "") + (e.region ? " · " + esc(e.region) : "");
+    var whereTxt = esc(e.address || e.area || "") + (e.region ? " · " + esc(e.region) : "");
     var cd = firstDay(e), who = whoLine(e.id);
     var acts;
     if (p.state === "done") {
